@@ -1329,3 +1329,10 @@ decision record lives in the execution ledger, not here.
    visible height, so the framebuffer was stretched by up to ~16% in portrait and the
    pointer mapping was off by the same factor. Letting three write matching inline px
    makes the CSS box, the buffer, and the camera aspect agree by construction.
+5. **Task 8, `src/main.js`** — the pointer-recentre listener added for the final review's
+   Important 3 was bound to `window` in the default (bubble) phase, where `pointerleave`
+   never arrives: the event has `bubbles: false`. Re-registered with `capture: true`, which
+   puts `window` first in the propagation path. Verified on the live page — only
+   window-with-capture and the target element itself receive the event; `document` in
+   bubble phase does not, so the obvious alternative of rebinding to `document` would not
+   have worked either.

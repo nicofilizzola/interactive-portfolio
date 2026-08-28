@@ -91,7 +91,13 @@ if (renderer) {
     );
   });
 
-  window.addEventListener('pointerleave', recentrePointer);
+  // pointerleave has bubbles: false, so a default-phase listener on window is never
+  // reached. Capture puts window first in the propagation path, so this fires whatever
+  // node the browser targets when the pointer exits. (Verified on the live page: only
+  // window-with-capture and the target element itself receive it — document in bubble
+  // phase does not.) The canvas fills the viewport, so leaving it means leaving the
+  // window; if a smaller element is ever added, this would also recentre on leaving it.
+  window.addEventListener('pointerleave', recentrePointer, true);
   window.addEventListener('pointercancel', recentrePointer);
   window.addEventListener('pointerup', recentrePointer);
   window.addEventListener('blur', recentrePointer);

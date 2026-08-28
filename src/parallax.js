@@ -21,11 +21,15 @@ export function createParallax({ maxOffset, maxTilt, tau }) {
       current.x = dampTowards(current.x, target.x, tau, dt);
       current.y = dampTowards(current.y, target.y, tau, dt);
 
+      // Negating a positive zero yields -0, which fails the suite's strict
+      // toBe(0) assertions (Vitest's toBe uses Object.is) and would leak -0
+      // to callers. `+ 0` normalizes it. Only offsetY negates a possibly-zero
+      // value, so only offsetY needs it — do not "tidy" this away.
       return {
-        offsetX: current.x * maxOffset + 0,
-        offsetY: (-current.y * maxOffset) + 0,
-        tiltX: current.y * maxTilt + 0,
-        tiltY: current.x * maxTilt + 0,
+        offsetX: current.x * maxOffset,
+        offsetY: -current.y * maxOffset + 0,
+        tiltX: current.y * maxTilt,
+        tiltY: current.x * maxTilt,
       };
     },
   };

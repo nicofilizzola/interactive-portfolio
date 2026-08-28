@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { entranceState } from '../src/animation.js';
+import { entranceRevolutions, entranceState } from '../src/animation.js';
 
 const OPTS = {
   duration: 3.5,
@@ -62,5 +62,47 @@ describe('entranceState', () => {
     const state = entranceState(-2, OPTS);
     expect(state.y).toBeCloseTo(4.9, 6);
     expect(state.scale).toBeCloseTo(0.15, 6);
+  });
+});
+
+describe('entranceRevolutions', () => {
+  it('has covered nothing at the start of the entrance', () => {
+    expect(entranceRevolutions(0, OPTS)).toBe(0);
+  });
+
+  it('treats negative elapsed time as the start of the entrance', () => {
+    expect(entranceRevolutions(-2, OPTS)).toBe(0);
+  });
+
+  it('lands on the analytic total D * (s0 + (s1 - s0) * 0.8)', () => {
+    const expected = OPTS.duration * (OPTS.startSpin + (OPTS.endSpin - OPTS.startSpin) * 0.8);
+    expect(entranceRevolutions(OPTS.duration, OPTS)).toBeCloseTo(expected, 12);
+    expect(entranceRevolutions(OPTS.duration, OPTS)).toBeCloseTo(2.198, 9);
+  });
+
+  it('covers 3.598 revolutions at the shipped 5.0 rev/s start speed', () => {
+    const fast = { ...OPTS, startSpin: 5.0 };
+    expect(entranceRevolutions(fast.duration, fast)).toBeCloseTo(3.598, 9);
+  });
+
+  it('increases strictly through the entrance', () => {
+    const samples = [0, 0.25, 0.5, 1, 1.75, 2.5, 3, 3.49, 3.5].map((t) =>
+      entranceRevolutions(t, OPTS)
+    );
+    for (let i = 1; i < samples.length; i += 1) {
+      expect(samples[i]).toBeGreaterThan(samples[i - 1]);
+    }
+  });
+
+  it('stops growing once the entrance is over', () => {
+    const total = entranceRevolutions(OPTS.duration, OPTS);
+    expect(entranceRevolutions(OPTS.duration + 60, OPTS)).toBe(total);
+    expect(entranceRevolutions(600, OPTS)).toBe(total);
+  });
+
+  it('front-loads the turns: 94 percent of them happen in the first half', () => {
+    const half = entranceRevolutions(OPTS.duration / 2, OPTS);
+    const total = entranceRevolutions(OPTS.duration, OPTS);
+    expect(half / total).toBeCloseTo(0.9426, 4);
   });
 });

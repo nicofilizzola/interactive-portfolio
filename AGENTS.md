@@ -39,8 +39,12 @@ Requirements:
 - Project/case-study content, about section, contact form.
 - Any 3D object other than landing-page cube.
 
-## Open Questions
+## Decisions (resolved 2026-08-28)
 
-- Build tooling / dev server (Vite, plain static, framework?) — not decided.
-- Exact entrance animation duration + easing curve.
-- Does cube react to pointer or scroll after settle?
+- **Build tooling:** Vite + npm `three`, plain JavaScript (no TypeScript). `npm run dev`, `npm run build`.
+- **Entrance:** 3.5s slow cinematic ease-out. Position and scale on ease-out cubic; spin speed on ease-out quart (3.0 -> 0.035 rev/s) so the rotation calms just ahead of the arrival.
+- **Post-settle interaction:** subtle damped pointer parallax (max 0.22 world-unit offset, max 0.09 rad tilt) layered over the eternal float spin. No scroll interaction.
+- **Cube look:** matte light-gray flat-shaded faces (`#d6d8dc`) with a thin blue edge outline (`#2563eb`).
+- **Page:** off-white background (`#f7f7f8`), no shadow, no DOM text — canvas only.
+- **Reduced motion:** `prefers-reduced-motion` is intentionally not honored for now.
+- **Deployment:** not set up. Scope ends at a working dev server and a static production build.

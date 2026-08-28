@@ -18,7 +18,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 // resize() updates.
 const view = createScene(window.innerWidth, window.innerHeight);
 const parallax = createParallax(PARALLAX);
-const clock = new THREE.Clock();
+const timer = new THREE.Timer();
 
 let elapsed = 0;
 let spinAngle = 0;
@@ -42,7 +42,8 @@ window.addEventListener('pointermove', (event) => {
 });
 
 function frame() {
-  const dt = Math.min(clock.getDelta(), MAX_FRAME_DELTA);
+  timer.update();
+  const dt = Math.min(timer.getDelta(), MAX_FRAME_DELTA);
   elapsed += dt;
 
   const state = entranceState(elapsed, { ...ENTRANCE, startY: view.startY });

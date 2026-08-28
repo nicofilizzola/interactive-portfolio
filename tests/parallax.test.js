@@ -63,4 +63,17 @@ describe('createParallax', () => {
     expect(out.offsetX).toBeCloseTo(0, 4);
     expect(out.offsetY).toBeCloseTo(0, 4);
   });
+
+  it('never leaks negative zero, even from a negative-zero pointer', () => {
+    const parallax = createParallax(CONFIG);
+    parallax.setPointer(-0, -0);
+    const out = parallax.update(1 / 60);
+
+    // dampTowards resolves -0 to +0, which is why only offsetY's unary negation
+    // needs normalizing. If dampTowards is ever rewritten, this fails first.
+    expect(Object.is(out.offsetX, 0)).toBe(true);
+    expect(Object.is(out.offsetY, 0)).toBe(true);
+    expect(Object.is(out.tiltX, 0)).toBe(true);
+    expect(Object.is(out.tiltY, 0)).toBe(true);
+  });
 });

@@ -25,6 +25,7 @@ export function createParallax({ maxOffset, maxTilt, tau }) {
       // toBe(0) assertions (Vitest's toBe uses Object.is) and would leak -0
       // to callers. `+ 0` normalizes it. Only offsetY negates a possibly-zero
       // value, so only offsetY needs it — do not "tidy" this away.
+      // (dampTowards resolves -0 to +0, so current.x/current.y never hold -0.)
       return {
         offsetX: current.x * maxOffset,
         offsetY: -current.y * maxOffset + 0,

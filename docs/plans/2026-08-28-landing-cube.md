@@ -118,10 +118,11 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   build: {
-    // three.js core alone is ~512 kB minified (~130 kB gzipped) and the project
-    // scope rules out code-splitting it. Raised so the build stays pristine,
-    // but low enough that real bundle growth still warns.
-    chunkSizeWarningLimit: 700,
+    // The bundle is ~525 kB minified (~132 kB gzipped), nearly all of it
+    // WebGLRenderer + three's core, and the project scope rules out
+    // code-splitting it. Raised so the build stays pristine, but tight enough
+    // that a three upgrade or real bundle growth still warns.
+    chunkSizeWarningLimit: 600,
   },
   test: {
     environment: 'node',
@@ -1120,7 +1121,7 @@ function applyViewportSize() {
   const width = window.innerWidth;
   const height = window.innerHeight;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
-  renderer.setSize(width, height, false);
+  renderer.setSize(width, height);
   view.resize(width, height);
 }
 
@@ -1309,7 +1310,7 @@ After Task 9, all four numbered spec requirements are verifiable:
 Three code blocks above were corrected after execution found them defective. The full
 decision record lives in the execution ledger, not here.
 
-1. **Task 1, `vite.config.js`** — added `build.chunkSizeWarningLimit: 700`. Three.js core
+1. **Task 1, `vite.config.js`** — added `build.chunkSizeWarningLimit: 600`. Three.js core
    is ~512 kB minified, which trips Vite's default 500 kB warning on every build. The task
    also requires a pristine build, so the two requirements conflicted as written.
 2. **Task 7, `src/parallax.js`** — added `+ 0` to `offsetY` plus an explanatory comment.
@@ -1317,6 +1318,14 @@ decision record lives in the execution ledger, not here.
    `Object.is(-0, 0)` is `false`. Vitest's `toBe` uses `Object.is`, so the prescribed
    code could not pass the prescribed `expect(out.offsetY).toBe(0)` assertion.
 3. **Task 8, `src/main.js`** — replaced `THREE.Clock` with `THREE.Timer`. `Clock` is
-   deprecated in three r185 and logs a deprecation warning on every page load, which
+   deprecated in three r183 and logs a deprecation warning on every page load, which
    contradicts this task's own clean-console acceptance criterion. `Timer` is exported
    from three's core, so no addons dependency was introduced.
+4. **Task 8, `src/main.js`** — dropped the `false` from `renderer.setSize(width, height)`.
+   The plan mandated `updateStyle: false` so three would not fight `style.css`'s
+   `100vw`/`100vh`, but that assumed the CSS was authoritative *and* correct. On iOS
+   Safari and Chrome Android `100vh` is the large (toolbars-hidden) viewport while
+   `window.innerHeight` — which sizes the drawing buffer and the camera aspect — is the
+   visible height, so the framebuffer was stretched by up to ~16% in portrait and the
+   pointer mapping was off by the same factor. Letting three write matching inline px
+   makes the CSS box, the buffer, and the camera aspect agree by construction.

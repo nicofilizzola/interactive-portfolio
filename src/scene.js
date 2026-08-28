@@ -20,7 +20,11 @@ export function createScene(width, height) {
   const framing = { startY: 0 };
 
   function resize(nextWidth, nextHeight) {
-    const aspect = nextWidth / nextHeight;
+    // A zero width makes cameraDistanceForRadius return Infinity, which propagates
+    // into startY and then NaN into the cube's position; a zero height only yields a
+    // degenerate projection. Both are transient (a real resize follows), so clamp
+    // rather than branch.
+    const aspect = Math.max(nextWidth, 1) / Math.max(nextHeight, 1);
     const distance = cameraDistanceForRadius(CUBE_RADIUS * FIT_MARGIN, CAMERA_FOV, aspect);
 
     camera.aspect = aspect;

@@ -4,6 +4,10 @@ Minimal, geometric landing page: a single cube enters from off-screen top, grows
 into the center over 3.5 seconds, then floats there forever with a gentle spin and a subtle
 pointer-follow tilt.
 
+## Prerequisites
+
+Node `^20.19.0 || >=22.12.0` (the floor comes from Vite 8). Check with `node --version`.
+
 ## Commands
 
 | Command | What it does |

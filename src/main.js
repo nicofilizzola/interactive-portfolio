@@ -11,8 +11,17 @@ import { entranceState } from './animation.js';
 import { createParallax } from './parallax.js';
 import { createScene } from './scene.js';
 
+// A blank off-white page is the intended degradation when WebGL is unavailable
+// (blocklisted driver, exhausted contexts, hardened browser) — the spec allows no
+// DOM fallback text. Reaching it via an uncaught throw is not intended, so fail
+// quietly instead. three registers its own context-lost/restored handlers.
 const canvas = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+} catch (error) {
+  console.error('[landing-cube] WebGL unavailable, leaving the page blank:', error);
+}
 
 // `view` is kept whole rather than destructured: view.startY is a getter that
 // resize() updates.
@@ -27,19 +36,22 @@ function applyViewportSize() {
   const width = window.innerWidth;
   const height = window.innerHeight;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
-  renderer.setSize(width, height, false);
+  // updateStyle is deliberately left ON: three then writes inline px matching the
+  // drawing buffer, so the CSS box, the buffer, and the camera aspect agree by
+  // construction. Passing `false` here would leave style.css's 100vw/100vh
+  // authoritative, and on iOS/Android 100vh is the large (toolbars-hidden)
+  // viewport while innerHeight is the visible one — which stretches the cube.
+  renderer.setSize(width, height);
   view.resize(width, height);
 }
 
-applyViewportSize();
-window.addEventListener('resize', applyViewportSize);
-
-window.addEventListener('pointermove', (event) => {
-  parallax.setPointer(
-    (event.clientX / window.innerWidth) * 2 - 1,
-    (event.clientY / window.innerHeight) * 2 - 1
-  );
-});
+// Without these the cube keeps a leftover lean forever once the pointer leaves the
+// window (second monitor, browser chrome, another app), and on touch a single drag
+// offsets it permanently — a touch pointermove never returns to centre. The damping
+// makes the ease-back free.
+function recentrePointer() {
+  parallax.setPointer(0, 0);
+}
 
 function frame() {
   timer.update();
@@ -68,4 +80,21 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
-requestAnimationFrame(frame);
+if (renderer) {
+  applyViewportSize();
+  window.addEventListener('resize', applyViewportSize);
+
+  window.addEventListener('pointermove', (event) => {
+    parallax.setPointer(
+      (event.clientX / window.innerWidth) * 2 - 1,
+      (event.clientY / window.innerHeight) * 2 - 1
+    );
+  });
+
+  window.addEventListener('pointerleave', recentrePointer);
+  window.addEventListener('pointercancel', recentrePointer);
+  window.addEventListener('pointerup', recentrePointer);
+  window.addEventListener('blur', recentrePointer);
+
+  requestAnimationFrame(frame);
+}

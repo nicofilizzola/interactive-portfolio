@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
+import { createScene } from '../src/scene.js';
+import { COLORS } from '../src/config.js';
+
+describe('createScene', () => {
+  it('builds an off-white scene containing the cube', () => {
+    const view = createScene(1600, 900);
+    expect(view.scene).toBeInstanceOf(THREE.Scene);
+    expect(view.scene.background.getHex()).toBe(COLORS.background);
+    expect(view.scene.getObjectByName('cube')).toBe(view.cube);
+  });
+
+  it('lights the scene with one ambient fill and one key light', () => {
+    const lights = createScene(1600, 900).scene.children.filter((child) => child.isLight);
+    expect(lights.filter((light) => light.isAmbientLight)).toHaveLength(1);
+    expect(lights.filter((light) => light.isDirectionalLight)).toHaveLength(1);
+  });
+
+  it('frames the cube head-on from in front of it', () => {
+    const view = createScene(1600, 900);
+    expect(view.camera.aspect).toBeCloseTo(1600 / 900, 6);
+    expect(view.camera.position.x).toBe(0);
+    expect(view.camera.position.y).toBe(0);
+    expect(view.camera.position.z).toBeGreaterThan(0);
+  });
+
+  it('starts the cube above the top edge of the frame', () => {
+    const view = createScene(1600, 900);
+    expect(view.startY).toBeGreaterThan(0);
+  });
+
+  it('pulls back and raises the entrance start when the viewport turns portrait', () => {
+    const view = createScene(1600, 900);
+    const landscapeZ = view.camera.position.z;
+    const landscapeStartY = view.startY;
+
+    view.resize(900, 1600);
+
+    expect(view.camera.aspect).toBeCloseTo(900 / 1600, 6);
+    expect(view.camera.position.z).toBeGreaterThan(landscapeZ);
+    expect(view.startY).toBeGreaterThan(landscapeStartY);
+  });
+});

@@ -85,9 +85,9 @@ describe('entranceRevolutions', () => {
     expect(entranceRevolutions(OPTS.duration, OPTS)).toBeCloseTo(2.198, 9);
   });
 
-  it('covers 3.598 revolutions at the shipped 5.0 rev/s start speed', () => {
-    const fast = { ...OPTS, startSpin: 5.0 };
-    expect(entranceRevolutions(fast.duration, fast)).toBeCloseTo(3.598, 9);
+  it('covers 3.150 revolutions at the shipped 4.5 rev/s start and zero end speed', () => {
+    const shipped = { ...OPTS, startSpin: 4.5, endSpin: 0 };
+    expect(entranceRevolutions(shipped.duration, shipped)).toBeCloseTo(3.15, 9);
   });
 
   it('increases strictly through the entrance', () => {
@@ -116,8 +116,8 @@ const TAU = Math.PI * 2;
 
 const ROT_OPTS = {
   duration: 3.5,
-  startSpin: 5.0,
-  endSpin: 0.035,
+  startSpin: 4.5,
+  endSpin: 0,
   settleYaw: Math.PI / 4,
   settlePitch: (15 * Math.PI) / 180,
   tumbleRatio: 0.35,
@@ -149,10 +149,10 @@ describe('entranceRotation', () => {
     expect(entranceRotation(ROT_OPTS.duration + 600, ROT_OPTS).pitch).toBe(atArrival);
   });
 
-  it('drifts horizontally at exactly endSpin after the entrance', () => {
+  it('holds the yaw perfectly still after the entrance', () => {
     const atArrival = entranceRotation(ROT_OPTS.duration, ROT_OPTS).yaw;
-    const tenSecondsLater = entranceRotation(ROT_OPTS.duration + 10, ROT_OPTS).yaw;
-    expect(tenSecondsLater - atArrival).toBeCloseTo(10 * ROT_OPTS.endSpin * TAU, 9);
+    expect(entranceRotation(ROT_OPTS.duration + 60, ROT_OPTS).yaw).toBe(atArrival);
+    expect(entranceRotation(ROT_OPTS.duration + 600, ROT_OPTS).yaw).toBe(atArrival);
   });
 
   it('reaches the same landing pose at 30 fps and at 144 fps', () => {
@@ -175,8 +175,8 @@ describe('entranceRotation', () => {
     expect(slow.yaw).toBeCloseTo(entranceRotation(ROT_OPTS.duration, ROT_OPTS).yaw, 12);
   });
 
-  it('turns one way only, through the entrance and on into the idle drift', () => {
-    const samples = [0, 0.35, 1, 1.75, 2.5, 3.5, 10, 60].map(
+  it('turns one way only through the entrance', () => {
+    const samples = [0, 0.35, 1, 1.75, 2.5, 3.5].map(
       (t) => entranceRotation(t, ROT_OPTS).yaw
     );
     for (let i = 1; i < samples.length; i += 1) {
@@ -195,11 +195,11 @@ describe('entranceRotation', () => {
     );
   });
 
-  it('holds the pose steady while only the idle drift advances', () => {
+  it('freezes both angles once settled — nothing moves without the viewer', () => {
     const a = entranceRotation(100, ROT_OPTS);
     const b = entranceRotation(200, ROT_OPTS);
     expect(b.pitch).toBe(a.pitch);
-    expect(b.yaw - a.yaw).toBeCloseTo(100 * ROT_OPTS.endSpin * TAU, 9);
+    expect(b.yaw).toBe(a.yaw);
   });
 });
 

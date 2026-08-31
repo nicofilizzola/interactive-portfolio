@@ -37,21 +37,21 @@ const TAU = Math.PI * 2;
 // 0 at `duration`, so the cube arrives on `settleYaw`/`settlePitch` with no
 // floating-point slack and no dependence on frame rate or on `startSpin`.
 //
-// After the entrance `remaining` is pinned at 0: the pitch is frozen on
-// `settlePitch` forever and only the yaw advances, at `endSpin`. That is the
-// horizontal-only idle float — no branch needed.
+// After the entrance `remaining` is pinned at 0, so BOTH angles are frozen
+// forever: the cube holds its landing pose exactly. Every post-entrance
+// rotation is the viewer's, added by the caller from src/drag.js — nothing here
+// advances on its own.
 //
 // `yaw` is deliberately NOT reduced modulo 2PI. The starting value is a large
 // negative angle, which is the same pose as its reduced form, and the cube is
-// off-screen for the first ~0.35 s regardless; reducing it would break the
+// off-screen for the first ~0.36 s regardless; reducing it would break the
 // exact landing and make the angle non-monotonic.
 export function entranceRotation(elapsed, opts) {
   const total = entranceRevolutions(opts.duration, opts);
   const remaining = total - entranceRevolutions(elapsed, opts);
-  const idleRevolutions = Math.max(0, elapsed - opts.duration) * opts.endSpin;
 
   return {
-    yaw: opts.settleYaw - TAU * remaining + TAU * idleRevolutions,
+    yaw: opts.settleYaw - TAU * remaining,
     pitch: opts.settlePitch - opts.tumbleRatio * TAU * remaining,
   };
 }

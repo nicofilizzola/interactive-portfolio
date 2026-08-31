@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createScene } from '../src/scene.js';
 import { visibleHalfHeight } from '../src/camera.js';
-import { CAMERA_FOV, COLORS, CUBE_RADIUS, PARALLAX } from '../src/config.js';
+import { CAMERA_FOV, COLORS, CUBE_RADIUS, FLOAT } from '../src/config.js';
 
 describe('createScene', () => {
   it('builds an off-white scene containing the cube', () => {
@@ -51,9 +51,9 @@ describe('createScene', () => {
       const halfH = visibleHalfHeight(view.camera.position.z, CAMERA_FOV);
       const limiting = Math.min(halfH, halfH * (w / h));
 
-      // Worst case is the cube at a corner-on orientation, pushed fully off-centre
-      // by parallax. Derived from config so tightening FIT_MARGIN fails here.
-      expect(limiting).toBeGreaterThan(CUBE_RADIUS + PARALLAX.maxOffset);
+      // Worst case is the cube at a corner-on orientation, displaced by the full
+      // idle float. Derived from config so tightening FIT_MARGIN fails here.
+      expect(limiting).toBeGreaterThan(CUBE_RADIUS + FLOAT.amplitude);
       expect(view.startY).toBeGreaterThan(halfH + CUBE_RADIUS);
     }
   });

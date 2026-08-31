@@ -73,7 +73,9 @@ function endDrag(event) {
 
   const pointerId = activePointerId;
   activePointerId = null;
-  // Already false inside lostpointercapture, so this only fires for blur.
+  // The UA fires lostpointercapture after pointerup, so capture is still
+  // held here and this release runs on every drag via pointerup (or blur);
+  // by the time lostpointercapture re-enters, it's a documented no-op.
   if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
   drag.end();
 }
@@ -108,6 +110,10 @@ if (renderer) {
   window.addEventListener('resize', applyViewportSize);
 
   canvas.addEventListener('pointerdown', (event) => {
+    // Primary pointer, left button only: a right- or middle-button drag
+    // should not spin the cube, and a right-drag should still open the
+    // browser's context menu.
+    if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
     // Ignore presses during the entrance (they would break the exact landing
     // pose) and any second finger while a drag is already running.
     if (!entranceDone || activePointerId !== null) return;

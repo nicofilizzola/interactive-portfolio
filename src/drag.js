@@ -15,6 +15,10 @@ export function createDragSpin({ revsPerViewport, releaseTau, velocityTau, maxSp
   let latest = 0; // most recent pointer x reported by move()
   let yaw = 0; // radians, unwrapped
   let velocity = 0; // radians per second
+  // Gain from the most recent update(), reused by end() to fold in pointer
+  // travel move() recorded after the last frame. Starts at 0 so an end()
+  // before any update() has ever run is a safe no-op.
+  let lastGain = 0;
 
   return {
     start(x) {
@@ -31,6 +35,14 @@ export function createDragSpin({ revsPerViewport, releaseTau, velocityTau, maxSp
     },
 
     end() {
+      // Fold in whatever move() recorded since the last update(): otherwise a
+      // drag's final pointer travel between the last rendered frame and the
+      // release is silently dropped, and a drag that starts and ends between
+      // two frames produces zero rotation.
+      if (dragging) {
+        yaw += (latest - lastApplied) * lastGain;
+        lastApplied = latest;
+      }
       dragging = false;
       const cap = maxSpeed * TAU;
       if (velocity > cap) velocity = cap;
@@ -44,6 +56,7 @@ export function createDragSpin({ revsPerViewport, releaseTau, velocityTau, maxSp
       if (!(dt > 0)) return yaw;
 
       const gain = (TAU * revsPerViewport) / Math.max(viewportMin, 1);
+      lastGain = gain;
 
       if (dragging) {
         const delta = (latest - lastApplied) * gain;

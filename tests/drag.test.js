@@ -146,6 +146,23 @@ describe('createDragSpin', () => {
     expect(Math.abs(coast(drag, { dt, viewportMin: 1000 }))).toBeLessThan(TAU * 0.01);
   });
 
+  it('keeps most of the throw when only the last frame was still', () => {
+    const dt = 1 / 60;
+    const full = createDragSpin(OPTS);
+    swipe(full, { distance: 8, frames: 30, dt, viewportMin: 1000 });
+    full.end();
+    const fullCoast = coast(full, { dt, viewportMin: 1000 });
+
+    const stalled = createDragSpin(OPTS);
+    swipe(stalled, { distance: 8, frames: 30, dt, viewportMin: 1000 });
+    stalled.update(dt, 1000); // one still frame, then release
+    stalled.end();
+    const stalledCoast = coast(stalled, { dt, viewportMin: 1000 });
+
+    // exp(-1/60/0.06) = 75.7% of the release speed survives one still frame.
+    expect(stalledCoast).toBeGreaterThan(fullCoast * 0.7);
+  });
+
   it('caps the thrown velocity so a flick cannot strobe', () => {
     const drag = createDragSpin(OPTS);
     drag.start(0);
@@ -159,6 +176,7 @@ describe('createDragSpin', () => {
     // Without the cap that single frame would fling it some 4600 rad.
     const total = coast(drag, { dt: 1 / 120, viewportMin: 1000 });
     expect(total).toBeLessThanOrEqual(TAU * OPTS.maxSpeed * OPTS.releaseTau * 1.05);
+    expect(total).toBeGreaterThan(TAU * OPTS.maxSpeed * OPTS.releaseTau * 0.9);
   });
 
   it('treats a zero or negative frame delta as a no-op and never produces NaN', () => {
@@ -167,9 +185,19 @@ describe('createDragSpin', () => {
     drag.move(300);
     expect(drag.update(0, 1000)).toBe(0);
     expect(drag.update(-1, 1000)).toBe(0);
+    expect(drag.update(NaN, 1000)).toBe(0);
 
     const yaw = drag.update(1 / 60, 1000);
     expect(Number.isNaN(yaw)).toBe(false);
     expect(drag.update(0, 1000)).toBe(yaw);
+  });
+
+  it('folds in pointer travel that arrived after the last frame', () => {
+    const drag = createDragSpin(OPTS);
+    drag.start(0);
+    drag.update(1 / 60, 1000);
+    drag.move(120);
+    drag.end();
+    expect(drag.update(1 / 60, 1000)).toBeCloseTo(TAU * 0.12, 6);
   });
 });

@@ -42,7 +42,7 @@ Requirements:
 - Project/case-study content, about section, contact form.
 - Any 3D object other than landing-page cube.
 
-## Decisions (resolved 2026-08-28)
+## Decisions
 
 - **Build tooling:** Vite + npm `three`, plain JavaScript (no TypeScript). `npm run dev`, `npm run build`.
 - **Entrance:** 3.5s slow cinematic ease-out. Position and scale on ease-out cubic; spin

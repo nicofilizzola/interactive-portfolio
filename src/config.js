@@ -6,7 +6,6 @@ export const CAMERA_FOV = 45;
 export const COLORS = {
   background: 0xf7f7f8,
   face: 0xd6d8dc,
-  edge: 0x2563eb,
 };
 
 export const ENTRANCE = {

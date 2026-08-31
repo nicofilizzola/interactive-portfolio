@@ -15,4 +15,13 @@ body {
   display: block;
   width: 100vw;
   height: 100vh;
+  /* Required, not polish: without it the browser claims a horizontal drag for
+     its own gesture handling before pointermove fires, and a downward drag
+     triggers pull-to-refresh on Android. overflow: hidden does not prevent it. */
+  touch-action: none;
+  cursor: grab;
+}
+
+#scene:active {
+  cursor: grabbing;
 }

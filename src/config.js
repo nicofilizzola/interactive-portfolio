@@ -25,6 +25,15 @@ export const ENTRANCE = {
   endSpin: 0.035,
 };
 
+// The idle vertical bob: the page's only autonomous motion once the entrance
+// ends. `amplitude` is in world units, deliberately sized against the cube
+// (0.16 peak-to-peak = 10% of CUBE_SIZE) rather than against the viewport, so
+// that changing FIT_MARGIN does not silently change how large the bob reads.
+export const FLOAT = {
+  amplitude: 0.08,
+  period: 5.0,
+};
+
 export const PARALLAX = {
   maxOffset: 0.22,
   maxTilt: 0.09,

@@ -55,3 +55,13 @@ export function entranceRotation(elapsed, opts) {
     pitch: opts.settlePitch - opts.tumbleRatio * TAU * remaining,
   };
 }
+
+// The idle vertical bob, phased from the end of the entrance rather than from
+// page load. `since` is clamped at 0, so this returns exactly 0 for the whole
+// entrance and the cube always begins its float moving upward from centre.
+// The velocity step at the handover (amplitude * TAU / period = 0.100 u/s
+// against an entrance peak of 3.6 u/s) is 2.8% and is deliberately not ramped.
+export function floatOffset(elapsed, opts) {
+  const since = Math.max(0, elapsed - opts.duration);
+  return opts.amplitude * Math.sin((TAU * since) / opts.period);
+}

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { entranceRevolutions, entranceRotation, entranceState } from '../src/animation.js';
+import {
+  entranceRevolutions,
+  entranceRotation,
+  entranceState,
+  floatOffset,
+} from '../src/animation.js';
 
 const OPTS = {
   duration: 3.5,
@@ -195,5 +200,42 @@ describe('entranceRotation', () => {
     const b = entranceRotation(200, ROT_OPTS);
     expect(b.pitch).toBe(a.pitch);
     expect(b.yaw - a.yaw).toBeCloseTo(100 * ROT_OPTS.endSpin * TAU, 9);
+  });
+});
+
+describe('floatOffset', () => {
+  const FLOAT_OPTS = { duration: 3.5, amplitude: 0.08, period: 5.0 };
+
+  it('is exactly zero for the whole entrance, so the handover has no jump', () => {
+    expect(floatOffset(0, FLOAT_OPTS)).toBe(0);
+    expect(floatOffset(1.75, FLOAT_OPTS)).toBe(0);
+    expect(floatOffset(FLOAT_OPTS.duration, FLOAT_OPTS)).toBe(0);
+  });
+
+  it('treats negative elapsed time as the start of the entrance', () => {
+    expect(floatOffset(-2, FLOAT_OPTS)).toBe(0);
+  });
+
+  it('rises first: a quarter period past the entrance is the top of the bob', () => {
+    const quarter = FLOAT_OPTS.duration + FLOAT_OPTS.period / 4;
+    expect(floatOffset(quarter, FLOAT_OPTS)).toBeCloseTo(FLOAT_OPTS.amplitude, 9);
+  });
+
+  it('crosses centre at the half period and bottoms out at three quarters', () => {
+    const half = FLOAT_OPTS.duration + FLOAT_OPTS.period / 2;
+    const threeQuarters = FLOAT_OPTS.duration + (3 * FLOAT_OPTS.period) / 4;
+    expect(floatOffset(half, FLOAT_OPTS)).toBeCloseTo(0, 9);
+    expect(floatOffset(threeQuarters, FLOAT_OPTS)).toBeCloseTo(-FLOAT_OPTS.amplitude, 9);
+  });
+
+  it('never exceeds the amplitude, out to ten minutes', () => {
+    for (let i = 0; i <= 1000; i += 1) {
+      const t = (i / 1000) * 600;
+      expect(Math.abs(floatOffset(t, FLOAT_OPTS))).toBeLessThanOrEqual(FLOAT_OPTS.amplitude);
+    }
+  });
+
+  it('is continuous across the entrance boundary', () => {
+    expect(floatOffset(FLOAT_OPTS.duration + 1e-9, FLOAT_OPTS)).toBeCloseTo(0, 6);
   });
 });

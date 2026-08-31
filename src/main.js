@@ -1,15 +1,16 @@
 import * as THREE from 'three';
 import './style.css';
 import {
+  DRAG,
   ENTRANCE,
   ENTRANCE_TUMBLE_RATIO,
+  FLOAT,
   MAX_FRAME_DELTA,
   MAX_PIXEL_RATIO,
-  PARALLAX,
   SETTLE,
 } from './config.js';
-import { entranceRotation, entranceState } from './animation.js';
-import { createParallax } from './parallax.js';
+import { entranceRotation, entranceState, floatOffset } from './animation.js';
+import { createDragSpin } from './drag.js';
 import { createScene } from './scene.js';
 
 // A blank off-white page is the intended degradation when WebGL is unavailable
@@ -27,8 +28,8 @@ try {
 // `view` is kept whole rather than destructured: view.startY is a getter that
 // resize() updates.
 const view = createScene(window.innerWidth, window.innerHeight);
-const parallax = createParallax(PARALLAX);
 const timer = new THREE.Timer();
+const drag = createDragSpin(DRAG);
 
 // Assembled once: entranceRotation needs the entrance timing and the target
 // pose together, and neither changes at runtime.
@@ -41,7 +42,15 @@ const ROTATION = {
   tumbleRatio: ENTRANCE_TUMBLE_RATIO,
 };
 
+// FLOAT carries the bob's shape; the phase is anchored to the end of the
+// entrance, so floatOffset needs the entrance duration alongside it.
+const FLOAT_OPTS = { ...FLOAT, duration: ENTRANCE.duration };
+
 let elapsed = 0;
+// Read by the pointerdown handler: a press before the entrance lands would make
+// the yaw at t = duration SETTLE.yaw + userYaw, breaking the exact landing.
+let entranceDone = false;
+let activePointerId = null;
 
 function applyViewportSize() {
   const width = window.innerWidth;
@@ -56,12 +65,19 @@ function applyViewportSize() {
   view.resize(width, height);
 }
 
-// Without these the cube keeps a leftover lean forever once the pointer leaves the
-// window (second monitor, browser chrome, another app), and on touch a single drag
-// offsets it permanently — a touch pointermove never returns to centre. The damping
-// makes the ease-back free.
-function recentrePointer() {
-  parallax.setPointer(0, 0);
+// Idempotent: pointerup and the lostpointercapture that follows it both land
+// here, and blur calls it with no event at all.
+function endDrag(event) {
+  if (activePointerId === null) return;
+  if (event && event.pointerId !== undefined && event.pointerId !== activePointerId) return;
+
+  const pointerId = activePointerId;
+  activePointerId = null;
+  // The UA fires lostpointercapture after pointerup, so capture is still
+  // held here and this release runs on every drag via pointerup (or blur);
+  // by the time lostpointercapture re-enters, it's a documented no-op.
+  if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
+  drag.end();
 }
 
 function frame() {
@@ -70,24 +86,20 @@ function frame() {
   elapsed += dt;
 
   const state = entranceState(elapsed, { ...ENTRANCE, startY: view.startY });
+  entranceDone = state.done;
   // Closed form, not an accumulator: the cube lands on the exact same pose at
-  // any frame rate, and the vertical tumble stops dead when the entrance ends.
+  // any frame rate, and both angles freeze dead when the entrance ends.
   const rotation = entranceRotation(elapsed, ROTATION);
+  // Once per frame, whatever the pointermove event rate was. The viewport
+  // minimum is the dimension the camera fits the cube to, so the gain stays
+  // proportional to the cube's apparent size.
+  const dragYaw = drag.update(dt, Math.min(window.innerWidth, window.innerHeight));
 
-  const pointer = parallax.update(dt);
-  const pointerWeight = state.progress;
-
-  view.cube.position.set(
-    pointer.offsetX * pointerWeight,
-    state.y + pointer.offsetY * pointerWeight,
-    0
-  );
+  view.cube.position.set(0, state.y + floatOffset(elapsed, FLOAT_OPTS), 0);
   view.cube.scale.setScalar(state.scale);
-  view.cube.rotation.set(
-    rotation.pitch + pointer.tiltX * pointerWeight,
-    rotation.yaw + pointer.tiltY * pointerWeight,
-    0
-  );
+  // rotation.pitch, not SETTLE.pitch: the entrance's vertical tumble runs
+  // through it and only lands on SETTLE.pitch at t = duration.
+  view.cube.rotation.set(rotation.pitch, rotation.yaw + dragYaw, 0);
 
   renderer.render(view.scene, view.camera);
   requestAnimationFrame(frame);
@@ -97,23 +109,31 @@ if (renderer) {
   applyViewportSize();
   window.addEventListener('resize', applyViewportSize);
 
-  window.addEventListener('pointermove', (event) => {
-    parallax.setPointer(
-      (event.clientX / window.innerWidth) * 2 - 1,
-      (event.clientY / window.innerHeight) * 2 - 1
-    );
+  canvas.addEventListener('pointerdown', (event) => {
+    // Primary pointer, left button only: a right- or middle-button drag
+    // should not spin the cube, and a right-drag should still open the
+    // browser's context menu.
+    if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    // Ignore presses during the entrance (they would break the exact landing
+    // pose) and any second finger while a drag is already running.
+    if (!entranceDone || activePointerId !== null) return;
+    activePointerId = event.pointerId;
+    // Capture is what keeps the drag alive once the pointer leaves the window —
+    // browser chrome, a second monitor, another app.
+    canvas.setPointerCapture(event.pointerId);
+    drag.start(event.clientX);
   });
 
-  // pointerleave has bubbles: false, so a default-phase listener on window is never
-  // reached. Capture puts window first in the propagation path, so this fires whatever
-  // node the browser targets when the pointer exits. (Verified on the live page: only
-  // window-with-capture and the target element itself receive it — document in bubble
-  // phase does not.) The canvas fills the viewport, so leaving it means leaving the
-  // window; if a smaller element is ever added, this would also recentre on leaving it.
-  window.addEventListener('pointerleave', recentrePointer, true);
-  window.addEventListener('pointercancel', recentrePointer);
-  window.addEventListener('pointerup', recentrePointer);
-  window.addEventListener('blur', recentrePointer);
+  canvas.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== activePointerId) return;
+    drag.move(event.clientX);
+  });
+
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('lostpointercapture', endDrag);
+  // Capture survives a lot, but not the tab losing focus mid-drag.
+  window.addEventListener('blur', () => endDrag());
 
   requestAnimationFrame(frame);
 }

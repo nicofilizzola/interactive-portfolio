@@ -19,8 +19,7 @@ export function entranceState(elapsed, opts) {
 // entrance's spin-speed curve, `lerp(startSpin, endSpin, easeOutQuart(p))`.
 // The (1 - p)^5 / 5 term is easeOutQuart's antiderivative, so this is only
 // valid while the spin decays on quart — see the plan's Global Constraints.
-// Beyond `duration` it returns the constant total; the idle drift is added by
-// the caller, not accumulated here.
+// Beyond `duration` it returns the constant total, and nothing adds to it.
 export function entranceRevolutions(elapsed, opts) {
   const p = clamp01(elapsed / opts.duration);
   const remaining = 1 - p;
@@ -37,21 +36,31 @@ const TAU = Math.PI * 2;
 // 0 at `duration`, so the cube arrives on `settleYaw`/`settlePitch` with no
 // floating-point slack and no dependence on frame rate or on `startSpin`.
 //
-// After the entrance `remaining` is pinned at 0: the pitch is frozen on
-// `settlePitch` forever and only the yaw advances, at `endSpin`. That is the
-// horizontal-only idle float — no branch needed.
+// After the entrance `remaining` is pinned at 0, so BOTH angles are frozen
+// forever: the cube holds its landing pose exactly. Every post-entrance
+// rotation is the viewer's, added by the caller from src/drag.js — nothing here
+// advances on its own.
 //
 // `yaw` is deliberately NOT reduced modulo 2PI. The starting value is a large
 // negative angle, which is the same pose as its reduced form, and the cube is
-// off-screen for the first ~0.35 s regardless; reducing it would break the
+// off-screen for the first ~0.36 s regardless; reducing it would break the
 // exact landing and make the angle non-monotonic.
 export function entranceRotation(elapsed, opts) {
   const total = entranceRevolutions(opts.duration, opts);
   const remaining = total - entranceRevolutions(elapsed, opts);
-  const idleRevolutions = Math.max(0, elapsed - opts.duration) * opts.endSpin;
 
   return {
-    yaw: opts.settleYaw - TAU * remaining + TAU * idleRevolutions,
+    yaw: opts.settleYaw - TAU * remaining,
     pitch: opts.settlePitch - opts.tumbleRatio * TAU * remaining,
   };
+}
+
+// The idle vertical bob, phased from the end of the entrance rather than from
+// page load. `since` is clamped at 0, so this returns exactly 0 for the whole
+// entrance and the cube always begins its float moving upward from centre.
+// The velocity step at the handover (amplitude * TAU / period = 0.100 u/s
+// against an entrance peak of 3.6 u/s) is 2.8% and is deliberately not ramped.
+export function floatOffset(elapsed, opts) {
+  const since = Math.max(0, elapsed - opts.duration);
+  return opts.amplitude * Math.sin((TAU * since) / opts.period);
 }

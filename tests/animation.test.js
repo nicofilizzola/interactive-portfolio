@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { entranceRevolutions, entranceRotation, entranceState } from '../src/animation.js';
+import {
+  entranceRevolutions,
+  entranceRotation,
+  entranceState,
+  floatOffset,
+} from '../src/animation.js';
 
 const OPTS = {
   duration: 3.5,
@@ -80,9 +85,9 @@ describe('entranceRevolutions', () => {
     expect(entranceRevolutions(OPTS.duration, OPTS)).toBeCloseTo(2.198, 9);
   });
 
-  it('covers 3.598 revolutions at the shipped 5.0 rev/s start speed', () => {
-    const fast = { ...OPTS, startSpin: 5.0 };
-    expect(entranceRevolutions(fast.duration, fast)).toBeCloseTo(3.598, 9);
+  it('covers 3.150 revolutions at the shipped 4.5 rev/s start and zero end speed', () => {
+    const shipped = { ...OPTS, startSpin: 4.5, endSpin: 0 };
+    expect(entranceRevolutions(shipped.duration, shipped)).toBeCloseTo(3.15, 9);
   });
 
   it('increases strictly through the entrance', () => {
@@ -111,8 +116,8 @@ const TAU = Math.PI * 2;
 
 const ROT_OPTS = {
   duration: 3.5,
-  startSpin: 5.0,
-  endSpin: 0.035,
+  startSpin: 4.5,
+  endSpin: 0,
   settleYaw: Math.PI / 4,
   settlePitch: (15 * Math.PI) / 180,
   tumbleRatio: 0.35,
@@ -144,10 +149,10 @@ describe('entranceRotation', () => {
     expect(entranceRotation(ROT_OPTS.duration + 600, ROT_OPTS).pitch).toBe(atArrival);
   });
 
-  it('drifts horizontally at exactly endSpin after the entrance', () => {
+  it('holds the yaw perfectly still after the entrance', () => {
     const atArrival = entranceRotation(ROT_OPTS.duration, ROT_OPTS).yaw;
-    const tenSecondsLater = entranceRotation(ROT_OPTS.duration + 10, ROT_OPTS).yaw;
-    expect(tenSecondsLater - atArrival).toBeCloseTo(10 * ROT_OPTS.endSpin * TAU, 9);
+    expect(entranceRotation(ROT_OPTS.duration + 60, ROT_OPTS).yaw).toBe(atArrival);
+    expect(entranceRotation(ROT_OPTS.duration + 600, ROT_OPTS).yaw).toBe(atArrival);
   });
 
   it('reaches the same landing pose at 30 fps and at 144 fps', () => {
@@ -170,8 +175,8 @@ describe('entranceRotation', () => {
     expect(slow.yaw).toBeCloseTo(entranceRotation(ROT_OPTS.duration, ROT_OPTS).yaw, 12);
   });
 
-  it('turns one way only, through the entrance and on into the idle drift', () => {
-    const samples = [0, 0.35, 1, 1.75, 2.5, 3.5, 10, 60].map(
+  it('turns one way only through the entrance', () => {
+    const samples = [0, 0.35, 1, 1.75, 2.5, 3.5].map(
       (t) => entranceRotation(t, ROT_OPTS).yaw
     );
     for (let i = 1; i < samples.length; i += 1) {
@@ -190,10 +195,47 @@ describe('entranceRotation', () => {
     );
   });
 
-  it('holds the pose steady while only the idle drift advances', () => {
+  it('freezes both angles once settled — nothing moves without the viewer', () => {
     const a = entranceRotation(100, ROT_OPTS);
     const b = entranceRotation(200, ROT_OPTS);
     expect(b.pitch).toBe(a.pitch);
-    expect(b.yaw - a.yaw).toBeCloseTo(100 * ROT_OPTS.endSpin * TAU, 9);
+    expect(b.yaw).toBe(a.yaw);
+  });
+});
+
+describe('floatOffset', () => {
+  const FLOAT_OPTS = { duration: 3.5, amplitude: 0.08, period: 5.0 };
+
+  it('is exactly zero for the whole entrance, so the handover has no jump', () => {
+    expect(floatOffset(0, FLOAT_OPTS)).toBe(0);
+    expect(floatOffset(1.75, FLOAT_OPTS)).toBe(0);
+    expect(floatOffset(FLOAT_OPTS.duration, FLOAT_OPTS)).toBe(0);
+  });
+
+  it('treats negative elapsed time as the start of the entrance', () => {
+    expect(floatOffset(-2, FLOAT_OPTS)).toBe(0);
+  });
+
+  it('rises first: a quarter period past the entrance is the top of the bob', () => {
+    const quarter = FLOAT_OPTS.duration + FLOAT_OPTS.period / 4;
+    expect(floatOffset(quarter, FLOAT_OPTS)).toBeCloseTo(FLOAT_OPTS.amplitude, 9);
+  });
+
+  it('crosses centre at the half period and bottoms out at three quarters', () => {
+    const half = FLOAT_OPTS.duration + FLOAT_OPTS.period / 2;
+    const threeQuarters = FLOAT_OPTS.duration + (3 * FLOAT_OPTS.period) / 4;
+    expect(floatOffset(half, FLOAT_OPTS)).toBeCloseTo(0, 9);
+    expect(floatOffset(threeQuarters, FLOAT_OPTS)).toBeCloseTo(-FLOAT_OPTS.amplitude, 9);
+  });
+
+  it('never exceeds the amplitude, out to ten minutes', () => {
+    for (let i = 0; i <= 1000; i += 1) {
+      const t = (i / 1000) * 600;
+      expect(Math.abs(floatOffset(t, FLOAT_OPTS))).toBeLessThanOrEqual(FLOAT_OPTS.amplitude);
+    }
+  });
+
+  it('is continuous across the entrance boundary', () => {
+    expect(floatOffset(FLOAT_OPTS.duration + 1e-9, FLOAT_OPTS)).toBeCloseTo(0, 6);
   });
 });

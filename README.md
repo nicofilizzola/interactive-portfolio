@@ -21,9 +21,11 @@ Node `^20.19.0 || >=22.12.0` (the floor comes from Vite 8). Check with `node --v
 
 ## Layout
 
-- `src/config.js` — every tunable number (timing, sizes, colors, parallax limits). Start here.
+- `src/config.js` — every tunable number (timing, sizes, colors, parallax limits, the
+  resting pose). Start here.
 - `src/math.js`, `src/easing.js` — numeric helpers.
-- `src/animation.js` — the entrance as one pure function of elapsed time.
+- `src/animation.js` — the entrance as pure functions of elapsed time: position and scale,
+  plus the closed-form yaw and pitch that land the cube on its resting pose.
 - `src/camera.js` — framing math: camera distance per aspect ratio, entrance start height.
 - `src/cube.js` — the cube: gray flat-shaded faces, thin blue edge outline.
 - `src/scene.js` — scene, camera, lights, and viewport fitting.
@@ -38,3 +40,7 @@ renderer is deliberately kept out of `scene.js` to keep it that way.
 Very minimal and geometric. Light gray is the primary color; blue appears only as the
 cube's edge outline. Deployment is not set up yet — `npm run build` produces a static
 `dist/` that can be hosted anywhere.
+
+The cube's entrance ends on a fixed pose: a vertical edge facing the viewer, tilted 15
+degrees so the top face shows. From there it turns horizontally only, at 0.035 rev/s,
+forever — the edge-on pose is where it lands, not where it stays.

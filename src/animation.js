@@ -19,8 +19,7 @@ export function entranceState(elapsed, opts) {
 // entrance's spin-speed curve, `lerp(startSpin, endSpin, easeOutQuart(p))`.
 // The (1 - p)^5 / 5 term is easeOutQuart's antiderivative, so this is only
 // valid while the spin decays on quart — see the plan's Global Constraints.
-// Beyond `duration` it returns the constant total; the idle drift is added by
-// the caller, not accumulated here.
+// Beyond `duration` it returns the constant total, and nothing adds to it.
 export function entranceRevolutions(elapsed, opts) {
   const p = clamp01(elapsed / opts.duration);
   const remaining = 1 - p;

@@ -55,12 +55,6 @@ export const DRAG = {
   maxSpeed: 2.5,
 };
 
-export const PARALLAX = {
-  maxOffset: 0.22,
-  maxTilt: 0.09,
-  tau: 0.35,
-};
-
 // The pose the entrance lands on: a vertical edge facing the camera (yaw is a
 // quarter turn offset by 45 degrees) with the top face tilted into view.
 // Positive pitch shows the top; negative would show the bottom.

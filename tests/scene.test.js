@@ -43,7 +43,7 @@ describe('createScene', () => {
     expect(view.startY).toBeGreaterThan(landscapeStartY);
   });
 
-  it('keeps the whole cube inside the frame at every aspect, parallax included', () => {
+  it('keeps the whole cube inside the frame at every aspect, idle float included', () => {
     const view = createScene(1600, 900);
 
     for (const [w, h] of [[2133, 1012], [1600, 900], [900, 900], [390, 844], [280, 1000]]) {

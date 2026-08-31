@@ -3,13 +3,12 @@ import './style.css';
 import {
   ENTRANCE,
   ENTRANCE_TUMBLE_RATIO,
+  FLOAT,
   MAX_FRAME_DELTA,
   MAX_PIXEL_RATIO,
-  PARALLAX,
   SETTLE,
 } from './config.js';
-import { entranceRotation, entranceState } from './animation.js';
-import { createParallax } from './parallax.js';
+import { entranceRotation, entranceState, floatOffset } from './animation.js';
 import { createScene } from './scene.js';
 
 // A blank off-white page is the intended degradation when WebGL is unavailable
@@ -27,7 +26,6 @@ try {
 // `view` is kept whole rather than destructured: view.startY is a getter that
 // resize() updates.
 const view = createScene(window.innerWidth, window.innerHeight);
-const parallax = createParallax(PARALLAX);
 const timer = new THREE.Timer();
 
 // Assembled once: entranceRotation needs the entrance timing and the target
@@ -40,6 +38,10 @@ const ROTATION = {
   settlePitch: SETTLE.pitch,
   tumbleRatio: ENTRANCE_TUMBLE_RATIO,
 };
+
+// FLOAT carries the bob's shape; the phase is anchored to the end of the
+// entrance, so floatOffset needs the entrance duration alongside it.
+const FLOAT_OPTS = { ...FLOAT, duration: ENTRANCE.duration };
 
 let elapsed = 0;
 
@@ -56,14 +58,6 @@ function applyViewportSize() {
   view.resize(width, height);
 }
 
-// Without these the cube keeps a leftover lean forever once the pointer leaves the
-// window (second monitor, browser chrome, another app), and on touch a single drag
-// offsets it permanently — a touch pointermove never returns to centre. The damping
-// makes the ease-back free.
-function recentrePointer() {
-  parallax.setPointer(0, 0);
-}
-
 function frame() {
   timer.update();
   const dt = Math.min(timer.getDelta(), MAX_FRAME_DELTA);
@@ -71,23 +65,14 @@ function frame() {
 
   const state = entranceState(elapsed, { ...ENTRANCE, startY: view.startY });
   // Closed form, not an accumulator: the cube lands on the exact same pose at
-  // any frame rate, and the vertical tumble stops dead when the entrance ends.
+  // any frame rate, and both angles freeze dead when the entrance ends.
   const rotation = entranceRotation(elapsed, ROTATION);
 
-  const pointer = parallax.update(dt);
-  const pointerWeight = state.progress;
-
-  view.cube.position.set(
-    pointer.offsetX * pointerWeight,
-    state.y + pointer.offsetY * pointerWeight,
-    0
-  );
+  view.cube.position.set(0, state.y + floatOffset(elapsed, FLOAT_OPTS), 0);
   view.cube.scale.setScalar(state.scale);
-  view.cube.rotation.set(
-    rotation.pitch + pointer.tiltX * pointerWeight,
-    rotation.yaw + pointer.tiltY * pointerWeight,
-    0
-  );
+  // rotation.pitch, not SETTLE.pitch: the entrance's vertical tumble runs
+  // through it and only lands on SETTLE.pitch at t = duration.
+  view.cube.rotation.set(rotation.pitch, rotation.yaw, 0);
 
   renderer.render(view.scene, view.camera);
   requestAnimationFrame(frame);
@@ -96,24 +81,6 @@ function frame() {
 if (renderer) {
   applyViewportSize();
   window.addEventListener('resize', applyViewportSize);
-
-  window.addEventListener('pointermove', (event) => {
-    parallax.setPointer(
-      (event.clientX / window.innerWidth) * 2 - 1,
-      (event.clientY / window.innerHeight) * 2 - 1
-    );
-  });
-
-  // pointerleave has bubbles: false, so a default-phase listener on window is never
-  // reached. Capture puts window first in the propagation path, so this fires whatever
-  // node the browser targets when the pointer exits. (Verified on the live page: only
-  // window-with-capture and the target element itself receive it — document in bubble
-  // phase does not.) The canvas fills the viewport, so leaving it means leaving the
-  // window; if a smaller element is ever added, this would also recentre on leaving it.
-  window.addEventListener('pointerleave', recentrePointer, true);
-  window.addEventListener('pointercancel', recentrePointer);
-  window.addEventListener('pointerup', recentrePointer);
-  window.addEventListener('blur', recentrePointer);
 
   requestAnimationFrame(frame);
 }

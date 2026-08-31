@@ -37,6 +37,24 @@ export const FLOAT = {
   period: 5.0,
 };
 
+// Drag-to-spin. `revsPerViewport` is measured against min(innerWidth,
+// innerHeight) — the same dimension the camera fits the cube to — so the gain
+// stays proportional to the cube's apparent size and the feel is identical on a
+// phone and a desktop. Useful tuning range is 0.6 (heavy, furniture-like) to
+// 1.5 (flicky).
+//
+// `maxSpeed` caps the released coast only, never the drag itself: 2.5 rev/s is
+// 30 degrees of yaw per frame at 30 fps, under the 45-degree limit where the
+// cube's 90-degree-symmetric yaw starts reading as running backwards. The coast
+// angle is exactly velocity * releaseTau, so the longest possible throw is
+// 2.5 * 0.5 = 1.25 revolutions.
+export const DRAG = {
+  revsPerViewport: 1.0,
+  releaseTau: 0.5,
+  velocityTau: 0.06,
+  maxSpeed: 2.5,
+};
+
 export const PARALLAX = {
   maxOffset: 0.22,
   maxTilt: 0.09,

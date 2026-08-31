@@ -2,12 +2,13 @@ import * as THREE from 'three';
 import './style.css';
 import {
   ENTRANCE,
+  ENTRANCE_TUMBLE_RATIO,
   MAX_FRAME_DELTA,
   MAX_PIXEL_RATIO,
   PARALLAX,
-  SPIN_TILT_RATIO,
+  SETTLE,
 } from './config.js';
-import { entranceState } from './animation.js';
+import { entranceRotation, entranceState } from './animation.js';
 import { createParallax } from './parallax.js';
 import { createScene } from './scene.js';
 
@@ -29,8 +30,18 @@ const view = createScene(window.innerWidth, window.innerHeight);
 const parallax = createParallax(PARALLAX);
 const timer = new THREE.Timer();
 
+// Assembled once: entranceRotation needs the entrance timing and the target
+// pose together, and neither changes at runtime.
+const ROTATION = {
+  duration: ENTRANCE.duration,
+  startSpin: ENTRANCE.startSpin,
+  endSpin: ENTRANCE.endSpin,
+  settleYaw: SETTLE.yaw,
+  settlePitch: SETTLE.pitch,
+  tumbleRatio: ENTRANCE_TUMBLE_RATIO,
+};
+
 let elapsed = 0;
-let spinAngle = 0;
 
 function applyViewportSize() {
   const width = window.innerWidth;
@@ -59,7 +70,9 @@ function frame() {
   elapsed += dt;
 
   const state = entranceState(elapsed, { ...ENTRANCE, startY: view.startY });
-  spinAngle += state.spinSpeed * Math.PI * 2 * dt;
+  // Closed form, not an accumulator: the cube lands on the exact same pose at
+  // any frame rate, and the vertical tumble stops dead when the entrance ends.
+  const rotation = entranceRotation(elapsed, ROTATION);
 
   const pointer = parallax.update(dt);
   const pointerWeight = state.progress;
@@ -71,8 +84,8 @@ function frame() {
   );
   view.cube.scale.setScalar(state.scale);
   view.cube.rotation.set(
-    spinAngle * SPIN_TILT_RATIO + pointer.tiltX * pointerWeight,
-    spinAngle + pointer.tiltY * pointerWeight,
+    rotation.pitch + pointer.tiltX * pointerWeight,
+    rotation.yaw + pointer.tiltY * pointerWeight,
     0
   );
 

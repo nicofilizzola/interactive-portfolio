@@ -151,12 +151,17 @@ describe('entranceRotation', () => {
   });
 
   it('reaches the same landing pose at 30 fps and at 144 fps', () => {
+    // Ask for the rotation once per simulated frame, so the two rates drive
+    // different call sequences: a stateful per-frame accumulator would land
+    // somewhere different at each rate, while a closed form cannot.
     const sampleAtArrival = (step) => {
       let t = 0;
+      let rotation = entranceRotation(t, ROT_OPTS);
       while (t < ROT_OPTS.duration) {
         t = Math.min(t + step, ROT_OPTS.duration);
+        rotation = entranceRotation(t, ROT_OPTS);
       }
-      return entranceRotation(t, ROT_OPTS);
+      return rotation;
     };
     const slow = sampleAtArrival(1 / 30);
     const fast = sampleAtArrival(1 / 144);

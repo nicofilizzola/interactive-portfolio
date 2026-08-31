@@ -14,10 +14,13 @@ export const ENTRANCE = {
   endY: 0,
   startScale: 0.15,
   endScale: 1,
-  // 5.7 rev/s is the hard ceiling: the cube's yaw is 90-degree symmetric, so
-  // past 45 degrees of yaw per rendered frame the spin reads as running
-  // backwards, and by the time the cube enters frame (~0.35 s) easeOutQuart has
-  // already cut the speed to 0.656 of this value. 5.0 stays legible at 30 fps.
+  // 5.0 sits at the ceiling, not comfortably under it: the cube's yaw is
+  // 90-degree symmetric, so past 45 degrees of yaw per rendered frame the spin
+  // reads as running backwards. The cube enters frame earlier on taller
+  // viewports, where easeOutQuart has cut away less of the peak — measured
+  // against the real framing, the 30 fps cap is ~6.0 in landscape, ~5.3 at
+  // 9:16, and ~5.1 on a 9:19.5 phone, where 5.0 already lands at 44.5 degrees
+  // per frame. Re-measure the tall-viewport case before raising this.
   startSpin: 5.0,
   endSpin: 0.035,
 };

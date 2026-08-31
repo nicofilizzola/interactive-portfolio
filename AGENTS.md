@@ -44,8 +44,10 @@ Requirements:
 - **Build tooling:** Vite + npm `three`, plain JavaScript (no TypeScript). `npm run dev`, `npm run build`.
 - **Entrance:** 3.5s slow cinematic ease-out. Position and scale on ease-out cubic; spin
   speed on ease-out quart (5.0 -> 0.035 rev/s) so the rotation calms just ahead of the
-  arrival. 5.7 rev/s is the hard ceiling on the start speed: the cube's yaw is 90-degree
-  symmetric, so a faster spin reads as running backwards on a 30 fps display.
+  arrival. 5.0 sits at the ceiling on the start speed rather than comfortably under it:
+  the cube's yaw is 90-degree symmetric, so a faster spin reads as running backwards on a
+  30 fps display. The limit is set by tall viewports, where the cube enters frame earlier
+  — about 6.0 rev/s in landscape but only ~5.1 on a 9:19.5 phone.
 - **Resting pose:** the entrance lands on a defined pose — yaw 45 deg, pitch +15 deg,
   roll 0 — so a vertical edge faces the camera with the top face visible. The rotation is
   a closed-form function of elapsed time rather than a per-frame accumulator, so the

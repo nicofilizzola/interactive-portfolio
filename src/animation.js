@@ -1,5 +1,5 @@
 import { clamp01, lerp } from './math.js';
-import { easeOutCubic, easeOutQuart } from './easing.js';
+import { easeOutCubic, easeOutQuart, smoothStep } from './easing.js';
 
 export function entranceState(elapsed, opts) {
   const progress = clamp01(elapsed / opts.duration);
@@ -55,12 +55,23 @@ export function entranceRotation(elapsed, opts) {
   };
 }
 
-// The idle vertical bob, phased from the end of the entrance rather than from
-// page load. `since` is clamped at 0, so this returns exactly 0 for the whole
-// entrance and the cube always begins its float moving upward from centre.
-// The velocity step at the handover (amplitude * TAU / period = 0.100 u/s
-// against an entrance peak of 3.6 u/s) is 2.8% and is deliberately not ramped.
+// The idle vertical bob. Two things keep it from reading as an event separate
+// from the entrance.
+//
+// The smoothStep envelope: phase 0 of a sine is its steepest point, so an
+// unramped bob's first instant is its fastest. S(0) = 0 and S'(0) = 0, and every
+// term of y' and y'' at s = 0 carries a factor of S(0), S'(0), or sin(0), so
+// position, velocity, and acceleration all start at exactly zero. The entrance
+// also arrives with zero velocity and zero acceleration, so the total vertical
+// motion is C^2 across the whole timeline.
+//
+// `overlap`: the float's clock starts that many seconds BEFORE the entrance
+// ends, so the bob emerges from motion that is still live rather than following
+// its corpse. See src/config.js for why 0.7 s is a ceiling and not taste.
 export function floatOffset(elapsed, opts) {
-  const since = Math.max(0, elapsed - opts.duration);
-  return opts.amplitude * Math.sin((TAU * since) / opts.period);
+  const since = elapsed - (opts.duration - opts.overlap);
+  if (since <= 0) return 0;
+
+  const envelope = smoothStep(since / opts.rampDuration);
+  return opts.amplitude * envelope * Math.sin((TAU * since) / opts.period);
 }

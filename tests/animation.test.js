@@ -204,28 +204,87 @@ describe('entranceRotation', () => {
 });
 
 describe('floatOffset', () => {
-  const FLOAT_OPTS = { duration: 3.5, amplitude: 0.08, period: 5.0 };
+  const FLOAT_OPTS = {
+    duration: 3.5,
+    amplitude: 0.08,
+    period: 5.0,
+    rampDuration: 1.5,
+    overlap: 0,
+  };
+  const onset = FLOAT_OPTS.duration - FLOAT_OPTS.overlap;
 
-  it('is exactly zero for the whole entrance, so the handover has no jump', () => {
+  it('is exactly zero until its own onset, and exactly zero at it', () => {
     expect(floatOffset(0, FLOAT_OPTS)).toBe(0);
     expect(floatOffset(1.75, FLOAT_OPTS)).toBe(0);
-    expect(floatOffset(FLOAT_OPTS.duration, FLOAT_OPTS)).toBe(0);
+    expect(floatOffset(onset, FLOAT_OPTS)).toBe(0);
   });
 
   it('treats negative elapsed time as the start of the entrance', () => {
     expect(floatOffset(-2, FLOAT_OPTS)).toBe(0);
   });
 
-  it('rises first: a quarter period past the entrance is the top of the bob', () => {
-    const quarter = FLOAT_OPTS.duration + FLOAT_OPTS.period / 4;
-    expect(floatOffset(quarter, FLOAT_OPTS)).toBeCloseTo(FLOAT_OPTS.amplitude, 9);
+  it('starts moving within a millisecond of the onset', () => {
+    expect(floatOffset(onset + 0.001, FLOAT_OPTS)).toBeGreaterThan(0);
   });
 
-  it('crosses centre at the half period and bottoms out at three quarters', () => {
-    const half = FLOAT_OPTS.duration + FLOAT_OPTS.period / 2;
-    const threeQuarters = FLOAT_OPTS.duration + (3 * FLOAT_OPTS.period) / 4;
+  // THE TEST THAT WOULD HAVE CAUGHT THE ORIGINAL DEFECT. The unramped form's
+  // velocity at its onset is amplitude * TAU / period = 0.1005 u/s, which is
+  // where the whole "arrive, then twitch" reads from. The envelope's S'(0) = 0
+  // drives it to ~1.3e-9.
+  it('has zero velocity at the float onset', () => {
+    const h = 1e-4;
+    const ramped = (floatOffset(onset + h, FLOAT_OPTS) - floatOffset(onset, FLOAT_OPTS)) / h;
+    expect(Math.abs(ramped)).toBeLessThan(1e-6);
+
+    const unramped =
+      (FLOAT_OPTS.amplitude * Math.sin((2 * Math.PI * h) / FLOAT_OPTS.period)) / h;
+    expect(unramped).toBeGreaterThan(0.1);
+  });
+
+  // Part of the C^2 claim (spec section 4). Note what it does NOT prove: sin has
+  // an inflection at 0, so the unramped form also has zero acceleration here.
+  // The velocity case above is the discriminating one.
+  it('has zero acceleration at the float onset', () => {
+    const h = 1e-4;
+    const second =
+      (floatOffset(onset + 2 * h, FLOAT_OPTS) -
+        2 * floatOffset(onset + h, FLOAT_OPTS) +
+        floatOffset(onset, FLOAT_OPTS)) /
+      (h * h);
+    expect(Math.abs(second)).toBeLessThan(1e-3);
+  });
+
+  it('clips its first upswing to 97% of the amplitude, and peaks late', () => {
+    // The envelope moves the first peak off the quarter period: 1.40 s past the
+    // onset, not 1.25 s, at 0.96977 * amplitude. Tolerance 5e-4 (3 places).
+    const firstPeak = floatOffset(onset + 1.4, FLOAT_OPTS);
+    expect(firstPeak / FLOAT_OPTS.amplitude).toBeCloseTo(0.97, 3);
+    expect(firstPeak).toBeGreaterThan(floatOffset(onset + 1.3, FLOAT_OPTS));
+    expect(firstPeak).toBeGreaterThan(floatOffset(onset + 1.5, FLOAT_OPTS));
+  });
+
+  it('attenuates the first quarter period by exactly smoothStep(5/6)', () => {
+    // smoothStep(1.25 / 1.5) = (25/36) * (4/3) = 100/108, exactly.
+    const quarter = onset + FLOAT_OPTS.period / 4;
+    expect(floatOffset(quarter, FLOAT_OPTS)).toBeCloseTo(
+      FLOAT_OPTS.amplitude * (100 / 108),
+      9
+    );
+  });
+
+  it('still crosses centre at the half period', () => {
+    const half = onset + FLOAT_OPTS.period / 2;
     expect(floatOffset(half, FLOAT_OPTS)).toBeCloseTo(0, 9);
+  });
+
+  it('reaches full amplitude once the ramp is over', () => {
+    // 3.75 s past the onset the envelope has been clamped at 1 for 2.25 s, so
+    // the trough is exactly -amplitude.
+    const threeQuarters = onset + (3 * FLOAT_OPTS.period) / 4;
     expect(floatOffset(threeQuarters, FLOAT_OPTS)).toBeCloseTo(-FLOAT_OPTS.amplitude, 9);
+
+    const secondCrest = onset + FLOAT_OPTS.period + FLOAT_OPTS.period / 4;
+    expect(floatOffset(secondCrest, FLOAT_OPTS)).toBeCloseTo(FLOAT_OPTS.amplitude, 9);
   });
 
   it('never exceeds the amplitude, out to ten minutes', () => {
@@ -235,7 +294,17 @@ describe('floatOffset', () => {
     }
   });
 
-  it('is continuous across the entrance boundary', () => {
-    expect(floatOffset(FLOAT_OPTS.duration + 1e-9, FLOAT_OPTS)).toBeCloseTo(0, 6);
+  it('is continuous across its onset', () => {
+    expect(floatOffset(onset + 1e-9, FLOAT_OPTS)).toBeCloseTo(0, 12);
+  });
+
+  it('is a strict generalisation: no ramp and no overlap is the bare sine', () => {
+    const bare = { ...FLOAT_OPTS, overlap: 0, rampDuration: 1e-9 };
+    for (const s of [0.5, 1.25, 2.5, 3.75, 7.5]) {
+      expect(floatOffset(FLOAT_OPTS.duration + s, bare)).toBeCloseTo(
+        FLOAT_OPTS.amplitude * Math.sin((2 * Math.PI * s) / FLOAT_OPTS.period),
+        9
+      );
+    }
   });
 });

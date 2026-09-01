@@ -32,9 +32,19 @@ export const ENTRANCE = {
 // ends. `amplitude` is in world units, deliberately sized against the cube
 // (0.16 peak-to-peak = 10% of CUBE_SIZE) rather than against the viewport, so
 // that changing FIT_MARGIN does not silently change how large the bob reads.
+//
+// `rampDuration` is the smoothStep amplitude envelope. It exists because phase 0
+// of a sine is its STEEPEST point: unramped, the bob's first instant was its
+// fastest (0.1005 u/s, one visible pixel in 0.041 s) and the motion switched on
+// rather than beginning. 1.5 s is the knee — the onset is 8.1x slower while the
+// first upswing still reaches 97% of the amplitude, so the bob does not look
+// like it is warming up for two cycles. Past 2.0 s the first peak is visibly
+// clipped and the first cycle reads as a different size from the later ones.
 export const FLOAT = {
   amplitude: 0.08,
   period: 5.0,
+  rampDuration: 1.5,
+  overlap: 0,
 };
 
 // Drag-to-spin. `revsPerViewport` is measured against min(innerWidth,

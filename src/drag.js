@@ -41,8 +41,18 @@ export function createDragSpin({ revsPerViewport, releaseTau, velocityTau, maxSp
     // through start(); if the cube were coasting, its yaw would keep advancing
     // through the transition while the transition's own yaw snapshot stayed
     // fixed, and the docked pose would jump at the end.
+    //
+    // Also abandons any gesture in flight, not only a coast: pointer capture
+    // keeps delivering pointermove after CSS pointer-events stops mattering, so
+    // a press that outlives its phase (Esc mid-drag, say) must not keep driving
+    // the yaw through a transition it was never part of. `dragging = false`
+    // makes update() take the not-dragging branch (adding velocity * dt, now 0,
+    // so the yaw freezes), and `lastApplied = latest` means the eventual end()
+    // folds in nothing.
     brake() {
       velocity = 0;
+      dragging = false;
+      lastApplied = latest;
     },
 
     move(x) {

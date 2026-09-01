@@ -36,7 +36,6 @@ export function dockState(progress, opts) {
     y: lerp(0, opts.dockY, eased),
     scale: lerp(1, opts.dockScale, eased),
     yaw: opts.yaw + yawSnapDelta(opts.yaw, opts.settleYaw) * eased,
-    eased,
   };
 }
 

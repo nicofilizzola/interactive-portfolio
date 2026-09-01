@@ -43,7 +43,7 @@ describe('initialState', () => {
 describe('entering', () => {
   it('ignores every input event', () => {
     const start = landing();
-    for (const type of ['faceTap', 'missTap', 'escape', 'dockClick', 'transitionDone']) {
+    for (const type of ['faceTap', 'missTap', 'escape', 'dockClick', 'transitionDone', 'hashChange']) {
       const next = reduce(start, { type, route: 'work', ...at(1) });
       expect(next.phase).toBe('entering');
       expect(next.navigate).toBeNull();

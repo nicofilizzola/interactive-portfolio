@@ -3,7 +3,7 @@ import { contentFade, dockState, fadeOpacity, yawSnapDelta } from '../src/dock.j
 import { DOCK, SETTLE } from '../src/config.js';
 
 const QUARTER = Math.PI / 2;
-const OPTS = { dockY: -1.9584, dockScale: 0.11612, yaw: SETTLE.yaw, settleYaw: SETTLE.yaw };
+const OPTS = { dockY: -2, dockScale: 0.11612, yaw: SETTLE.yaw, settleYaw: SETTLE.yaw };
 
 describe('yawSnapDelta', () => {
   it('is zero when the cube is already on a resting pose', () => {

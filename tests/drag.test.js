@@ -265,4 +265,25 @@ describe('brake', () => {
     drag.brake();
     expect(drag.update(1 / 60, 1000)).toBeCloseTo(before, 12);
   });
+
+  // A gesture that outlives its phase (Esc mid-drag, say) must not keep driving
+  // the yaw: pointer capture keeps delivering pointermove regardless of what
+  // the nav machine is doing, so brake() has to abandon the drag itself, not
+  // only the coast.
+  it('abandons a drag in flight: movement after brake does not advance the yaw', () => {
+    const drag = createDragSpin(OPTS);
+    const dt = 1 / 60;
+
+    drag.start(0);
+    drag.move(200);
+    const before = drag.update(dt, 1000);
+
+    drag.brake();
+
+    drag.move(9000);
+    expect(drag.update(dt, 1000)).toBeCloseTo(before, 12);
+
+    drag.end();
+    expect(drag.update(dt, 1000)).toBeCloseTo(before, 12);
+  });
 });

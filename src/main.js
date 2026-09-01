@@ -281,7 +281,15 @@ function frame() {
   // to the cube's apparent size.
   const dragYaw = drag.update(dt, Math.min(window.innerWidth, window.innerHeight));
 
-  if (nav.phase === 'entering' && entrance.done) dispatch({ type: 'entranceDone' });
+  if (nav.phase === 'entering' && entrance.done) {
+    dispatch({ type: 'entranceDone' });
+    // The entering phase ignores navigation to protect the landing pose (see
+    // src/navstate.js), so a hashchange that arrived mid-entrance was dropped
+    // rather than driving the machine. Reconcile against the URL now that the
+    // entrance has landed.
+    const live = parseHash(window.location.hash).route;
+    if (live !== nav.route) dispatch({ type: 'hashChange', route: live });
+  }
 
   // Only while the big cube is up and no drag is running: during a drag the
   // pressed face owns the highlight.

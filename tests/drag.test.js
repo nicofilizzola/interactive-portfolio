@@ -201,3 +201,68 @@ describe('createDragSpin', () => {
     expect(drag.update(1 / 60, 1000)).toBeCloseTo(TAU * 0.12, 6);
   });
 });
+
+describe('start reports the coast it cancelled', () => {
+  it('returns zero when the cube was already still', () => {
+    const drag = createDragSpin(OPTS);
+    expect(drag.start(100)).toBe(0);
+  });
+
+  it('returns the cancelled speed in revolutions per second', () => {
+    const drag = createDragSpin(OPTS);
+    // Throw the cube: 400 px of drag in one 1/60 s frame, then release.
+    drag.start(0);
+    drag.update(1 / 60, 1000);
+    drag.move(400);
+    drag.update(1 / 60, 1000);
+    drag.end();
+
+    const coasting = drag.update(1 / 60, 1000);
+    expect(coasting).not.toBe(0);
+
+    // A press on the coasting cube stops it dead and says how fast it was.
+    const cancelledRevs = drag.start(400);
+    expect(cancelledRevs).toBeGreaterThan(0);
+
+    // Still means still: another frame adds no yaw.
+    const held = drag.update(1 / 60, 1000);
+    expect(drag.update(1 / 60, 1000)).toBeCloseTo(held, 12);
+  });
+
+  it('reports magnitude, so a leftward throw is not a negative speed', () => {
+    const drag = createDragSpin(OPTS);
+    drag.start(400);
+    drag.update(1 / 60, 1000);
+    drag.move(0);
+    drag.update(1 / 60, 1000);
+    drag.end();
+    drag.update(1 / 60, 1000);
+
+    expect(drag.start(0)).toBeGreaterThan(0);
+  });
+});
+
+describe('brake', () => {
+  it('stops a coast without starting a drag', () => {
+    const drag = createDragSpin(OPTS);
+    drag.start(0);
+    drag.update(1 / 60, 1000);
+    drag.move(400);
+    drag.update(1 / 60, 1000);
+    drag.end();
+
+    const before = drag.update(1 / 60, 1000);
+    drag.brake();
+
+    // The yaw holds: no coast, and no drag delta from a pointer that never moved.
+    expect(drag.update(1 / 60, 1000)).toBeCloseTo(before, 12);
+    expect(drag.update(1 / 60, 1000)).toBeCloseTo(before, 12);
+  });
+
+  it('is a no-op on a still cube', () => {
+    const drag = createDragSpin(OPTS);
+    const before = drag.update(1 / 60, 1000);
+    drag.brake();
+    expect(drag.update(1 / 60, 1000)).toBeCloseTo(before, 12);
+  });
+});

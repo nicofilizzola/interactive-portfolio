@@ -18,3 +18,17 @@ export function smoothStep(t) {
   const x = clamp01(t);
   return x * x * (3 - 2 * x);
 }
+
+// The dock transition's curve. Zero derivative at BOTH ends, and symmetric about
+// (0.5, 0.5). The entrance uses easeOutCubic because it arrives already at
+// speed; the dock starts from a standstill at screen centre, where an ease-out
+// would begin at maximum velocity — the same defect the float's envelope exists
+// to remove. The symmetry is what makes `expanding` an exact mirror of
+// `shrinking`: run it at 1 - p and the cube retraces its path.
+export function easeInOutCubic(t) {
+  const x = clamp01(t);
+  if (x < 0.5) return 4 * x * x * x;
+
+  const remaining = 2 - 2 * x;
+  return 1 - (remaining * remaining * remaining) / 2;
+}

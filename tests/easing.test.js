@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { easeOutCubic, easeOutQuart, smoothStep } from '../src/easing.js';
+import { easeOutCubic, easeOutQuart, smoothStep, easeInOutCubic } from '../src/easing.js';
 
 describe('easeOutCubic', () => {
   it('maps the unit interval onto itself', () => {
@@ -59,6 +59,46 @@ describe('smoothStep', () => {
     let previous = -1;
     for (let i = 0; i <= 100; i += 1) {
       const value = smoothStep(i / 100);
+      expect(value).toBeGreaterThan(previous);
+      previous = value;
+    }
+  });
+});
+
+describe('easeInOutCubic', () => {
+  it('maps the unit interval onto itself, through the midpoint', () => {
+    expect(easeInOutCubic(0)).toBe(0);
+    expect(easeInOutCubic(1)).toBe(1);
+    expect(easeInOutCubic(0.5)).toBeCloseTo(0.5, 12);
+  });
+
+  it('clamps out-of-range input instead of overshooting', () => {
+    expect(easeInOutCubic(-1)).toBe(0);
+    expect(easeInOutCubic(4)).toBe(1);
+  });
+
+  // The reason the dock does not reuse the entrance's easeOutCubic: the dock
+  // starts from a standstill, and an ease-out there begins at maximum velocity.
+  it('leaves and arrives with zero slope, unlike easeOutCubic', () => {
+    const h = 1e-6;
+    expect((easeInOutCubic(h) - easeInOutCubic(0)) / h).toBeLessThan(1e-4);
+    expect((easeInOutCubic(1) - easeInOutCubic(1 - h)) / h).toBeLessThan(1e-4);
+    expect((easeOutCubic(h) - easeOutCubic(0)) / h).toBeGreaterThan(1);
+  });
+
+  // This is what makes `expanding` an exact mirror of `shrinking`, so the cube
+  // never appears to have moved while docked.
+  it('is symmetric about the midpoint', () => {
+    for (let i = 0; i <= 100; i += 1) {
+      const p = i / 100;
+      expect(easeInOutCubic(p) + easeInOutCubic(1 - p)).toBeCloseTo(1, 12);
+    }
+  });
+
+  it('rises monotonically', () => {
+    let previous = -1;
+    for (let i = 0; i <= 100; i += 1) {
+      const value = easeInOutCubic(i / 100);
       expect(value).toBeGreaterThan(previous);
       previous = value;
     }

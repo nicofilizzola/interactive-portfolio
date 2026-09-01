@@ -6,7 +6,26 @@
     <title>Portfolio</title>
   </head>
   <body>
+    <!-- First in the document so it doubles as skip navigation. Visually hidden
+         but focusable: a raycast has no keyboard equivalent, so without these
+         links keyboard users would have no navigation at all. clip-path, not
+         display:none — display:none removes them from the tab order. -->
+    <nav id="routes" aria-label="Sections">
+      <a href="#/work">Work</a>
+      <a href="#/about">About</a>
+      <a href="#/writing">Writing</a>
+      <a href="#/play">Playground</a>
+      <a href="#/contact">Contact</a>
+    </nav>
+    <main id="page"></main>
+    <!-- Purely visual: miss-taps come from the raycast (the canvas sits above
+         this and takes the pointer events), so this never needs any of its own. -->
+    <div id="scrim" hidden></div>
     <canvas id="scene"></canvas>
+    <!-- The docked cube's control. The canvas cannot carry a focus ring, and
+         hit-testing a 64 px cube through a full-viewport canvas would mean
+         leaving that canvas clickable over the whole page. -->
+    <button id="dock" type="button" aria-label="Open navigation" hidden></button>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

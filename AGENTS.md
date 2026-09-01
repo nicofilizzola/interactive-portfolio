@@ -28,7 +28,8 @@ Requirements:
 1. Cube enter from top of screen, spinning.
 2. Rotation ease from fast entrance spin down to complete stop as cube settle in middle.
 3. Cube start small, grow through animation — look like it move closer to viewer.
-4. After entrance, cube hold pose still and drift gentle up and down forever. All
+4. After entrance, cube hold pose still and drift gentle up and down forever. Drift ramp in
+   smooth and start before entrance finish, so no dead beat and no motion switch on. All
    horizontal rotation come from viewer drag, none automatic.
 5. Viewer drag horizontal to spin cube. Release throw it, cube coast to stop.
 
@@ -64,9 +65,30 @@ Requirements:
   its 0.035 rev/s idle drift. The only autonomous motion left on the page is the vertical
   float.
 - **Idle float:** vertical only. A sine bob of amplitude 0.08 world units and period 5.0 s,
-  phase-anchored to the end of the entrance so it is exactly 0 at the handover and always
-  begins moving upward. Peak-to-peak travel is 10% of the cube's edge length — defined
-  against the cube, not the viewport, so changing `FIT_MARGIN` does not change how it reads.
+  multiplied by a `smoothStep` amplitude envelope over `rampDuration` 1.5 s and started
+  `overlap` 0.7 s *before* the entrance ends. The envelope has `S(0) = 0` **and**
+  `S'(0) = 0`, so the float's position, velocity, and acceleration are all exactly 0 at its
+  onset; the entrance also arrives with zero velocity and zero acceleration, so the total
+  vertical motion is C² across the whole timeline and there is no order of derivative at
+  which anything jumps. (Not C³: the entrance's third derivative is `-6*startY/D³` on the
+  left and 0 on the right. Nothing visible depends on C³.) The overlap starts the bob at
+  `p = 0.80`, where the entrance is within 7.4 px of centre at 99.7% scale and turning at
+  2.6 deg/s — visually parked — so it costs nothing legible from the entrance and removes the
+  ~0.5 s dead beat that made the onset read as a second, unrelated event. Measured at 60 fps,
+  the quietest frame after `t = 2.5` went from 0.0001 px (dead still, at `t = 3.483`) to
+  0.0043 px at the bob's own trough, and the largest frame-to-frame jerk from 0.408 px at
+  exactly `t = 3.500` to 0.027 px.
+  **Consequence: `floatOffset(3.5)` is `0.0277430`, not 0**, and the cube's `y` at the end of
+  the entrance is no longer `ENTRANCE.endY` (`endY` remains the entrance's own target, which
+  it still hits exactly). 0.7 s is a ceiling, not taste: through the overlap the entrance
+  offset and the float's first upward half-cycle add, and both the entrance offset at the
+  onset (`startY * 0.008`, worst 0.0760 at 280x1000) and the float's own first peak (0.0776)
+  must stay under `amplitude` 0.08 — 3.0% of headroom at every tested aspect. At 1.0 s the sum
+  is 0.0887 and the in-frame bound in `tests/scene.test.js` must be widened; raising
+  `FIT_MARGIN` raises `startY` and eats the same headroom. Peak-to-peak travel is 10% of the
+  cube's edge length — defined against the cube, not the viewport, so changing `FIT_MARGIN`
+  does not change how it reads. **The landing pose is untouched:** it is a claim about yaw and
+  pitch, and the float moves neither.
 - **Post-settle interaction:** drag horizontally to spin. Gain is 1.0 revolution per
   `min(innerWidth, innerHeight)` of drag — normalized against the same dimension the camera
   fits the cube to, so the felt sensitivity is identical on a phone and a desktop. Release

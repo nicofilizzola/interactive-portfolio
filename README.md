@@ -1,7 +1,8 @@
 # Interactive 3D Portfolio
 
 Minimal, geometric landing page: a single cube enters from off-screen top, grows and slows
-into the center over 3.5 seconds, then holds its pose and drifts gently up and down forever.
+into the center over 3.5 seconds, then holds its pose while a gentle vertical drift ramps in
+out of the arrival and continues forever.
 Drag it horizontally to spin it; let go mid-swipe and it coasts to a stop.
 
 ## Prerequisites
@@ -44,5 +45,6 @@ is not set up yet — `npm run build` produces a static `dist/` that can be host
 
 The cube's entrance ends on a fixed pose: a vertical edge facing the viewer, tilted 15
 degrees so the top face shows. From there it holds that pose exactly — nothing rotates on
-its own. The only autonomous motion is a gentle vertical bob; every turn of the cube is the
-viewer's, dragged in by hand.
+its own. The only autonomous motion is a gentle vertical bob, which ramps in with a
+smoothstep envelope and starts just before the entrance lands, so it emerges from the arrival
+rather than switching on after it; every turn of the cube is the viewer's, dragged in by hand.

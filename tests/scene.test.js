@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createScene } from '../src/scene.js';
 import { visibleHalfHeight } from '../src/camera.js';
-import { CAMERA_FOV, COLORS, CUBE_RADIUS, FLOAT } from '../src/config.js';
+import { CAMERA_FOV, COLORS, CUBE_RADIUS, ENTRANCE, FLOAT } from '../src/config.js';
+import { entranceState, floatOffset } from '../src/animation.js';
 
 describe('createScene', () => {
   it('builds an off-white scene containing the cube', () => {
@@ -55,6 +56,30 @@ describe('createScene', () => {
       // idle float. Derived from config so tightening FIT_MARGIN fails here.
       expect(limiting).toBeGreaterThan(CUBE_RADIUS + FLOAT.amplitude);
       expect(view.startY).toBeGreaterThan(halfH + CUBE_RADIUS);
+    }
+  });
+
+  it('keeps the entrance tail plus the overlapping float inside the float bound', () => {
+    const view = createScene(1600, 900);
+
+    for (const [w, h] of [[2133, 1012], [1600, 900], [900, 900], [390, 844], [280, 1000]]) {
+      view.resize(w, h);
+      const entranceOpts = { ...ENTRANCE, startY: view.startY };
+      const floatOpts = { ...FLOAT, duration: ENTRANCE.duration };
+
+      // Through the overlap the entrance offset and the float's first upward
+      // half-cycle are both positive and ADD. This is the constraint that pins
+      // FLOAT.overlap at 0.7 s: raise it, or raise FIT_MARGIN (which raises
+      // startY), and this fails before anything visibly leaves the frame.
+      let peak = 0;
+      const onset = ENTRANCE.duration - FLOAT.overlap;
+      for (let i = 0; i <= 2000; i += 1) {
+        const t = onset + (i / 2000) * (FLOAT.period / 2);
+        const sum = entranceState(t, entranceOpts).y + floatOffset(t, floatOpts);
+        if (sum > peak) peak = sum;
+      }
+
+      expect(peak).toBeLessThan(FLOAT.amplitude);
     }
   });
 });

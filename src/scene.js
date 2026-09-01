@@ -19,7 +19,7 @@ export function createScene(width, height) {
   keyLight.position.set(3, 5, 4);
   scene.add(keyLight);
 
-  const cube = createCube();
+  const { mesh: cube, setArmedFace } = createCube();
   scene.add(cube);
 
   const framing = {
@@ -75,6 +75,7 @@ export function createScene(width, height) {
     scene,
     camera,
     cube,
+    setArmedFace,
     resize,
     // Getter, not a plain property: resize() changes it, so callers must read it live.
     get startY() {

@@ -13,6 +13,17 @@ describe('createScene', () => {
     expect(view.scene.getObjectByName('cube')).toBe(view.cube);
   });
 
+  it('exposes the cube\'s armed-face control alongside the mesh', () => {
+    const view = createScene(1600, 900);
+    expect(view.scene.getObjectByName('cube')).toBe(view.cube);
+    expect(typeof view.setArmedFace).toBe('function');
+
+    view.setArmedFace(2);
+    expect(view.cube.material[2].color.getHex()).toBe(COLORS.faceArmed);
+    view.setArmedFace(null);
+    expect(view.cube.material[2].color.getHex()).toBe(COLORS.face);
+  });
+
   it('lights the scene with one ambient fill and one key light', () => {
     const lights = createScene(1600, 900).scene.children.filter((child) => child.isLight);
     expect(lights.filter((light) => light.isAmbientLight)).toHaveLength(1);

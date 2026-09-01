@@ -14,7 +14,8 @@ import {
 import { entranceRotation, entranceState, floatOffset } from './animation.js';
 import { createDragSpin } from './drag.js';
 import { createScene } from './scene.js';
-import { contentFade } from './dock.js';
+import { contentFade, dockState, fadeOpacity, yawSnapDelta } from './dock.js';
+import { clamp01 } from './math.js';
 import { initialState, reduce } from './navstate.js';
 import { createTapTracker, pointerToNdc } from './pick.js';
 import {
@@ -95,6 +96,20 @@ let lastYaw = SETTLE.yaw;
 let yawOffset = 0;
 // Which content fade the transition in flight needs. See src/dock.js contentFade.
 let fadeMode = 'hold';
+// The cube's total yaw when the transition in flight began. A snapshot, not a
+// live read: a coasting drag must not move the target mid-flight.
+let transitionYaw = SETTLE.yaw;
+// Has the cross-fade's DOM swap happened yet for the transition in flight?
+let swapped = false;
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+function dockDuration() {
+  // Motion now gates NAVIGATION rather than decoration: without this clamp a
+  // motion-sensitive viewer waits 0.9 s of animation to reach a page, twice per
+  // round trip. The entrance's recorded stance (not honored) is left alone.
+  return reducedMotion.matches ? DOCK.reducedDuration : DOCK.duration;
+}
 
 function applyViewportSize() {
   const width = window.innerWidth;
@@ -205,6 +220,8 @@ function onNavChange(previous, next) {
     previous.phase !== next.phase;
 
   if (startedTransition) {
+    transitionYaw = lastYaw;
+    swapped = false;
     // Esc, the dock button, and the back button all start a transition with no
     // pointer press, so none of them went through drag.start(). Stop any coast
     // now, or the drag yaw keeps advancing while the transition's own yaw
@@ -218,8 +235,14 @@ function onNavChange(previous, next) {
   }
 
   if (endedTransition) {
-    if (fadeMode === 'cross' || fadeMode === 'out') mountContent(next.route);
-    if (previous.phase === 'shrinking') view.setArmedFace(null);
+    if (previous.phase === 'shrinking') {
+      // Fold the snap in ONCE, so lastYaw keeps agreeing with the drawn pose for
+      // every later drag and transition — and so `expanding` starts from an
+      // already-snapped yaw, where the delta is 0 and the pose holds.
+      yawOffset += yawSnapDelta(transitionYaw, SETTLE.yaw);
+      view.setArmedFace(null);
+    }
+    if ((fadeMode === 'cross' && !swapped) || fadeMode === 'out') mountContent(next.route);
     fadeMode = 'hold';
   }
 
@@ -290,21 +313,45 @@ function frame() {
 
   let y = entrance.y;
   let scale = entrance.scale;
-  const yaw = rotation.yaw + dragYaw + yawOffset;
+  let yaw = rotation.yaw + dragYaw + yawOffset;
 
   if (nav.phase === 'docked') {
     y = view.dockY;
     scale = view.dockScale;
   } else if (nav.phase === 'shrinking' || nav.phase === 'expanding') {
-    // TASK 14 REPLACES THIS BRANCH with the timed transition. Until then the
-    // transition is instantaneous, which makes routing exercisable end to end.
-    y = nav.phase === 'shrinking' ? view.dockY : 0;
-    scale = nav.phase === 'shrinking' ? view.dockScale : 1;
-    dispatch({ type: 'transitionDone' });
+    const progress = clamp01((elapsed - nav.phaseStartedAt) / dockDuration());
+    // Expanding is the same curve run backwards. easeInOutCubic is symmetric
+    // about (0.5, 0.5), so the reverse pass retraces the forward one exactly and
+    // the cube never appears to have moved while docked.
+    const step = dockState(nav.phase === 'shrinking' ? progress : 1 - progress, {
+      dockY: view.dockY,
+      dockScale: view.dockScale,
+      yaw: transitionYaw,
+      settleYaw: SETTLE.yaw,
+    });
+
+    y = step.y;
+    scale = step.scale;
+    yaw = step.yaw;
+
+    page.style.opacity = String(fadeOpacity(fadeMode, progress, DOCK.contentFadeStart));
+    // The cross-fade reaches exactly 0 at the midpoint, so the swap is invisible.
+    if (fadeMode === 'cross' && !swapped && progress >= 0.5) {
+      mountContent(nav.route);
+      swapped = true;
+    }
+
+    if (progress >= 1) {
+      dispatch({ type: 'transitionDone' });
+      // A hashchange that arrives mid-transition is ignored by the machine, so
+      // reconcile against the URL now that the transition has landed.
+      const live = parseHash(window.location.hash).route;
+      if (live !== nav.route) dispatch({ type: 'hashChange', route: live });
+    }
   }
 
   lastYaw = yaw;
-  view.cube.position.set(0, y + floatOffset(elapsed, FLOAT_OPTS), 0);
+  view.cube.position.set(0, y + floatOffset(elapsed, FLOAT_OPTS) * scale, 0);
   view.cube.scale.setScalar(scale);
   // rotation.pitch, not SETTLE.pitch: the entrance's vertical tumble runs through
   // it and only lands on SETTLE.pitch at t = duration.

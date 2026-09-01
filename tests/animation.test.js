@@ -5,6 +5,7 @@ import {
   entranceState,
   floatOffset,
 } from '../src/animation.js';
+import { ENTRANCE, FLOAT } from '../src/config.js';
 
 const OPTS = {
   duration: 3.5,
@@ -201,6 +202,12 @@ describe('entranceRotation', () => {
     expect(b.pitch).toBe(a.pitch);
     expect(b.yaw).toBe(a.yaw);
   });
+
+  it('lands the exact resting pose — the float moves neither angle', () => {
+    const landed = entranceRotation(ROT_OPTS.duration, ROT_OPTS);
+    expect(landed.yaw).toBe(ROT_OPTS.settleYaw);
+    expect(landed.pitch).toBe(ROT_OPTS.settlePitch);
+  });
 });
 
 describe('floatOffset', () => {
@@ -209,7 +216,7 @@ describe('floatOffset', () => {
     amplitude: 0.08,
     period: 5.0,
     rampDuration: 1.5,
-    overlap: 0,
+    overlap: 0.7,
   };
   const onset = FLOAT_OPTS.duration - FLOAT_OPTS.overlap;
 
@@ -306,5 +313,46 @@ describe('floatOffset', () => {
         9
       );
     }
+  });
+
+  it('is already off centre when the entrance ends — the overlap, deliberately', () => {
+    // Was exactly 0 before the overlap existed. 0.0277430 u is 6.76 px at
+    // 1920x1080. The entrance still lands its own target endY exactly; this is
+    // the float sitting on top of it.
+    expect(floatOffset(FLOAT_OPTS.duration, FLOAT_OPTS)).toBeCloseTo(0.027743, 6);
+  });
+
+  it('starts before the entrance ends, not after', () => {
+    expect(onset).toBeCloseTo(2.8, 12);
+    expect(onset).toBeLessThan(FLOAT_OPTS.duration);
+  });
+});
+
+// The FLOAT_OPTS above is a literal, so nothing in that block can catch the
+// shipped constants drifting away from the behaviour it asserts. These are the
+// cases that pin what the page actually does.
+describe('the shipped float configuration', () => {
+  const SHIPPED = { ...FLOAT, duration: ENTRANCE.duration };
+  const onset = ENTRANCE.duration - FLOAT.overlap;
+
+  it('ramps over 1.5 s and starts 0.7 s before the entrance ends', () => {
+    expect(FLOAT.rampDuration).toBe(1.5);
+    expect(FLOAT.overlap).toBe(0.7);
+  });
+
+  it('leaves the float 0.0277430 u off centre when the entrance ends', () => {
+    expect(floatOffset(ENTRANCE.duration, SHIPPED)).toBeCloseTo(0.027743, 6);
+  });
+
+  it('has zero velocity at the shipped onset, so nothing switches on', () => {
+    const h = 1e-4;
+    const velocity = (floatOffset(onset + h, SHIPPED) - floatOffset(onset, SHIPPED)) / h;
+    expect(Math.abs(velocity)).toBeLessThan(1e-6);
+  });
+
+  it('overlaps the entrance rather than following it', () => {
+    expect(onset).toBeLessThan(ENTRANCE.duration);
+    expect(floatOffset(onset, SHIPPED)).toBe(0);
+    expect(floatOffset(onset + 0.001, SHIPPED)).toBeGreaterThan(0);
   });
 });

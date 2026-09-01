@@ -44,7 +44,23 @@ export const FLOAT = {
   amplitude: 0.08,
   period: 5.0,
   rampDuration: 1.5,
-  overlap: 0,
+  // The float's clock starts 0.7 s BEFORE the entrance ends. By p = 0.80
+  // (t = 2.80 s) the cube is within 7.4 px of centre at 99.7% scale, turning at
+  // 2.6 deg/s — visually parked — and it then sat still for the remaining 0.7 s
+  // before the bob switched on. The viewer saw arrive / hold / twitch, three
+  // beats, where the intent is one continuous settling. The overlap costs
+  // nothing legible from the entrance and buys the whole dead beat back.
+  //
+  // 0.7 is the CEILING, not a taste knob. Through the overlap the entrance
+  // offset and the float's first upward half-cycle add, and two maxima have to
+  // stay under `amplitude`: the entrance offset at the onset (startY * 0.008,
+  // worst 0.0760 at a 280x1000 viewport) and the float's own first peak
+  // (0.96977 * amplitude = 0.0776). At 1.0 s the sum reaches 0.0887 and the
+  // bound in tests/scene.test.js must be widened too. Raising FIT_MARGIN raises
+  // startY and eats the same headroom.
+  //
+  // Consequence, deliberate: floatOffset(3.5) is 0.0277430, not 0.
+  overlap: 0.7,
 };
 
 // Drag-to-spin. `revsPerViewport` is measured against min(innerWidth,

@@ -6,6 +6,12 @@ export const CAMERA_FOV = 45;
 export const COLORS = {
   background: 0xf7f7f8,
   face: 0xd6d8dc,
+  // The armed nav face. Neutral, not the nominated blue accent: at the resting
+  // pose the boundary between two routes runs down the middle of the cube, so
+  // this colour is on screen every time the pointer crosses it, and blue would
+  // be the page's only colour and would dominate. Trying blue here is a
+  // deliberate second pass, not a default.
+  faceArmed: 0xe4e6ea,
 };
 
 export const ENTRANCE = {
@@ -61,6 +67,55 @@ export const FLOAT = {
   //
   // Consequence, deliberate: floatOffset(3.5) is 0.0277430, not 0.
   overlap: 0.7,
+};
+
+// The dock transition, and the docked cube's geometry.
+//
+// `silhouettePx` is a CSS-PIXEL SIZE, not a scale factor, and that is the whole
+// point. The camera distance varies with aspect ratio, so a fixed scale draws a
+// different physical size on every device: reusing ENTRANCE.startScale (0.15)
+// for symmetry with the entrance would draw an 83 px nav button on a desktop and
+// a 30 px one on a phone. src/scene.js derives the scale from this instead.
+// `maxSilhouetteFraction` only binds below ~400 px of minimum dimension, where a
+// flat 64 px would start to dominate — at 390x844 it caps the silhouette at
+// 62.4 px.
+//
+// `duration` 0.9 s: long enough to read as one continuous move across the whole
+// viewport, short enough not to gate navigation. Under ~0.6 s the travel reads
+// as a jump; over ~1.2 s navigation feels gated. It is NOT the entrance's 3.5 s
+// — that is a curtain-raiser, this is a UI transition.
+//
+// `reducedDuration` honors prefers-reduced-motion for the dock transitions only.
+// Motion here gates NAVIGATION rather than decoration: without the clamp a
+// motion-sensitive viewer waits 0.9 s of animation to reach a page, twice per
+// round trip. The entrance's recorded stance (not honored) is left alone.
+export const DOCK = {
+  duration: 0.9,
+  reducedDuration: 0.12,
+  silhouettePx: 64,
+  maxSilhouetteFraction: 0.16,
+  bottomMarginPx: 24,
+  // Content fades in over the back 60% of the shrink, so the cube visibly
+  // commits to moving before the page arrives.
+  contentFadeStart: 0.4,
+};
+
+// Tap-vs-drag discrimination. A face click is a FAILED drag — the same gesture on
+// the same surface already means "spin the cube" — so it is defined negatively.
+//
+// `tapMaxTravelPx` is straight-line distance from the press point, not cumulative
+// path length, so jitter that returns to the origin still counts as a tap. 8 px
+// is generous on purpose: on touch the finger is already down before the viewer
+// can adjust their aim.
+//
+// `tapMaxEntrySpeedRevs` keeps a brake from also navigating. drag.start() already
+// zeroes the velocity so a press stops a coasting cube; left alone, one tap would
+// both brake and navigate. Above this entry speed the tap is spent stopping the
+// cube, and the second tap navigates.
+export const PICK = {
+  tapMaxTravelPx: 8,
+  tapMaxDurationMs: 500,
+  tapMaxEntrySpeedRevs: 0.05,
 };
 
 // Drag-to-spin. `revsPerViewport` is measured against min(innerWidth,

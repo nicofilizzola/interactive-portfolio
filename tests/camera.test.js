@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { cameraDistanceForRadius, entranceStartY, visibleHalfHeight } from '../src/camera.js';
+import {
+  cameraDistanceForRadius,
+  entranceStartY,
+  pixelsPerWorldUnit,
+  visibleHalfHeight,
+} from '../src/camera.js';
 
 // tan(45deg / 2) === tan(PI / 8)
 const HALF_FOV_TAN = Math.tan(Math.PI / 8);
@@ -46,5 +51,20 @@ describe('entranceStartY', () => {
 
   it('rises as the camera pulls back', () => {
     expect(entranceStartY(9, 45, 1.386)).toBeGreaterThan(entranceStartY(5, 45, 1.386));
+  });
+});
+
+describe('pixelsPerWorldUnit', () => {
+  it('converts world units to CSS pixels at the framing plane', () => {
+    // FIT_MARGIN 1.6, FOV 45: landscape camera z is 5.35242, portrait 390x844
+    // pulls back to 11.58306. Both are derived in the plan's reference table.
+    expect(pixelsPerWorldUnit(5.35242, 45, 1080)).toBeCloseTo(243.58, 1);
+    expect(pixelsPerWorldUnit(5.35242, 45, 900)).toBeCloseTo(202.97, 1);
+    expect(pixelsPerWorldUnit(11.58306, 45, 844)).toBeCloseTo(87.955, 2);
+  });
+
+  it('scales linearly with viewport height and inversely with distance', () => {
+    expect(pixelsPerWorldUnit(5, 45, 2000)).toBeCloseTo(2 * pixelsPerWorldUnit(5, 45, 1000), 9);
+    expect(pixelsPerWorldUnit(10, 45, 1000)).toBeCloseTo(pixelsPerWorldUnit(5, 45, 1000) / 2, 9);
   });
 });

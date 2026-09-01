@@ -1,6 +1,11 @@
 import * as THREE from 'three';
-import { CAMERA_FOV, COLORS, CUBE_RADIUS, FIT_MARGIN } from './config.js';
-import { cameraDistanceForRadius, entranceStartY } from './camera.js';
+import { CAMERA_FOV, COLORS, CUBE_RADIUS, CUBE_SIZE, DOCK, FIT_MARGIN } from './config.js';
+import {
+  cameraDistanceForRadius,
+  entranceStartY,
+  pixelsPerWorldUnit,
+  visibleHalfHeight,
+} from './camera.js';
 import { createCube } from './cube.js';
 
 export function createScene(width, height) {
@@ -17,7 +22,13 @@ export function createScene(width, height) {
   const cube = createCube();
   scene.add(cube);
 
-  const framing = { startY: 0 };
+  const framing = {
+    startY: 0,
+    dockY: 0,
+    dockScale: 1,
+    dockSilhouettePx: 0,
+    pxPerWorldUnit: 1,
+  };
 
   function resize(nextWidth, nextHeight) {
     // A zero width makes cameraDistanceForRadius return Infinity, which propagates
@@ -33,6 +44,29 @@ export function createScene(width, height) {
     camera.updateProjectionMatrix();
 
     framing.startY = entranceStartY(distance, CAMERA_FOV, CUBE_RADIUS);
+
+    // The docked cube is a UI control, so it is sized in CSS pixels and the
+    // scale is derived — see DOCK in src/config.js for why a fixed scale is
+    // wrong. CUBE_SIZE * sqrt(2) is the edge-on silhouette width in world units,
+    // which is the pose the cube docks in (src/dock.js snaps the yaw to it).
+    const halfHeight = visibleHalfHeight(distance, CAMERA_FOV);
+    const pxPerWorldUnit = pixelsPerWorldUnit(distance, CAMERA_FOV, Math.max(nextHeight, 1));
+    const silhouettePx = Math.min(
+      DOCK.silhouettePx,
+      DOCK.maxSilhouetteFraction * Math.min(Math.max(nextWidth, 1), Math.max(nextHeight, 1))
+    );
+
+    framing.pxPerWorldUnit = pxPerWorldUnit;
+    framing.dockSilhouettePx = silhouettePx;
+    framing.dockScale = silhouettePx / (CUBE_SIZE * Math.SQRT2 * pxPerWorldUnit);
+    // The bounding-sphere radius, not the half-edge: the clearance is then
+    // conservative at any pose, and it leaves room for the docked cube's scaled
+    // float without a second calculation.
+    framing.dockY = -(
+      halfHeight -
+      CUBE_RADIUS * framing.dockScale -
+      DOCK.bottomMarginPx / pxPerWorldUnit
+    );
   }
 
   resize(width, height);
@@ -45,6 +79,18 @@ export function createScene(width, height) {
     // Getter, not a plain property: resize() changes it, so callers must read it live.
     get startY() {
       return framing.startY;
+    },
+    get dockY() {
+      return framing.dockY;
+    },
+    get dockScale() {
+      return framing.dockScale;
+    },
+    get dockSilhouettePx() {
+      return framing.dockSilhouettePx;
+    },
+    get pxPerWorldUnit() {
+      return framing.pxPerWorldUnit;
     },
   };
 }

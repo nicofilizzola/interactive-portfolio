@@ -8,6 +8,7 @@ import {
   FLOAT,
   MAX_FRAME_DELTA,
   MAX_PIXEL_RATIO,
+  PICK,
   SETTLE,
 } from './config.js';
 import { entranceRotation, entranceState, floatOffset } from './animation.js';
@@ -15,7 +16,14 @@ import { createDragSpin } from './drag.js';
 import { createScene } from './scene.js';
 import { contentFade } from './dock.js';
 import { initialState, reduce } from './navstate.js';
-import { hashForRoute, parseHash, titleForRoute } from './routes.js';
+import { createTapTracker, pointerToNdc } from './pick.js';
+import {
+  faceIndexFromNormal,
+  hashForRoute,
+  parseHash,
+  routeForFaceIndex,
+  titleForRoute,
+} from './routes.js';
 import { renderPage } from './pages.js';
 
 // A blank off-white page is the intended degradation when WebGL is unavailable
@@ -40,6 +48,9 @@ try {
 const view = createScene(window.innerWidth, window.innerHeight);
 const timer = new THREE.Timer();
 const drag = createDragSpin(DRAG);
+const tap = createTapTracker(PICK);
+const raycaster = new THREE.Raycaster();
+const pointerNdc = new THREE.Vector2();
 
 // Assembled once: entranceRotation needs the entrance timing and the target pose
 // together, and neither changes at runtime.
@@ -71,6 +82,10 @@ let elapsed = boot.route === null ? 0 : ENTRANCE.duration + FLOAT.rampDuration;
 let nav = initialState(boot.route, elapsed);
 
 let activePointerId = null;
+// The most recent hover position, folded once per frame. Mouse only — touch has
+// no hover, and a raycast per pointermove would make the cost depend on the
+// browser's event coalescing rate.
+let hoverAt = null;
 // The cube's total yaw as drawn on the last frame. Read when a dock transition
 // starts, so it interpolates from where the viewer actually left the cube.
 let lastYaw = SETTLE.yaw;
@@ -138,6 +153,32 @@ function applyDom() {
   if (nav.phase !== 'shrinking' && nav.phase !== 'expanding') page.style.opacity = '1';
 }
 
+function pickFaceIndex(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const ndc = pointerToNdc(clientX, clientY, rect);
+  pointerNdc.set(ndc.x, ndc.y);
+  raycaster.setFromCamera(pointerNdc, view.camera);
+  // The pick runs outside the render loop, so the world matrix would otherwise be
+  // one frame stale.
+  view.cube.updateMatrixWorld();
+
+  const hits = raycaster.intersectObject(view.cube, false);
+  if (hits.length === 0) return null;
+  // The NORMAL, not face.materialIndex: see src/routes.js and
+  // tests/facepick.test.js. The normal is correct with or without a material
+  // array.
+  return faceIndexFromNormal(hits[0].face.normal);
+}
+
+function handleTap(clientX, clientY) {
+  const faceIndex = pickFaceIndex(clientX, clientY);
+  const route = faceIndex === null ? undefined : routeForFaceIndex(faceIndex);
+  // A raycast miss is meaningful, not a no-op: it dismisses the open nav. So is a
+  // tap on a face with no route — only the unreachable bottom face, handled by
+  // the same path rather than special-cased.
+  dispatch(route === undefined ? { type: 'missTap' } : { type: 'faceTap', route });
+}
+
 function dispatch(event) {
   const previous = nav;
   nav = reduce(nav, { ...event, at: elapsed });
@@ -198,16 +239,28 @@ function onNavChange(previous, next) {
 // Idempotent: pointerup and the lostpointercapture that follows it both land
 // here, and blur calls it with no event at all.
 function endDrag(event) {
-  if (activePointerId === null) return;
+  if (activePointerId === null) {
+    tap.cancel();
+    return;
+  }
   if (event && event.pointerId !== undefined && event.pointerId !== activePointerId) return;
 
   const pointerId = activePointerId;
   activePointerId = null;
-  // The UA fires lostpointercapture after pointerup, so capture is still
-  // held here and this release runs on every drag via pointerup (or blur);
-  // by the time lostpointercapture re-enters, it's a documented no-op.
+  // The UA fires lostpointercapture after pointerup, so capture is still held
+  // here and this release runs on every drag via pointerup (or blur); by the time
+  // lostpointercapture re-enters, it is a documented no-op.
   if (canvas.hasPointerCapture(pointerId)) canvas.releasePointerCapture(pointerId);
+
+  // ONLY a pointerup can be a tap. pointercancel, lostpointercapture, and blur
+  // all discard the gesture. tap.end() consumes it, so the lostpointercapture
+  // that follows a pointerup cannot produce a second tap.
+  const wasTap = Boolean(event) && event.type === 'pointerup' && tap.end(event.timeStamp);
+  if (!wasTap) tap.cancel();
+
   drag.end();
+  view.setArmedFace(null);
+  if (wasTap) handleTap(event.clientX, event.clientY);
 }
 
 function frame() {
@@ -225,6 +278,15 @@ function frame() {
   const dragYaw = drag.update(dt, Math.min(window.innerWidth, window.innerHeight));
 
   if (nav.phase === 'entering' && entrance.done) dispatch({ type: 'entranceDone' });
+
+  if (hoverAt !== null) {
+    // Only while the big cube is up and no drag is running: during a drag the
+    // pressed face owns the highlight.
+    if (nav.phase === 'resting' && activePointerId === null) {
+      view.setArmedFace(pickFaceIndex(hoverAt.x, hoverAt.y));
+    }
+    hoverAt = null;
+  }
 
   let y = entrance.y;
   let scale = entrance.scale;
@@ -273,12 +335,39 @@ if (renderer) {
     // Capture is what keeps the drag alive once the pointer leaves the window —
     // browser chrome, a second monitor, another app.
     canvas.setPointerCapture(event.pointerId);
-    drag.start(event.clientX);
+    // start() returns the coast speed it just cancelled, in rev/s. A press on a
+    // coasting cube brakes it, and that brake must not also navigate: the first
+    // tap stops the cube, the second one navigates.
+    const brakedRevs = drag.start(event.clientX);
+    tap.start(event.clientX, event.clientY, event.timeStamp, brakedRevs);
+    // Press feedback is the only pre-commit signal touch has — there is no hover
+    // — and it is required, not polish: at the resting pose the boundary between
+    // two routes runs exactly down the middle of the cube.
+    view.setArmedFace(pickFaceIndex(event.clientX, event.clientY));
   });
 
   canvas.addEventListener('pointermove', (event) => {
+    if (activePointerId === null) {
+      // Hover: recorded here, folded once per frame. Touch has no hover, and a
+      // touch pointermove with no capture is not a gesture we care about.
+      if (event.pointerType === 'mouse' && nav.phase === 'resting') {
+        hoverAt = { x: event.clientX, y: event.clientY };
+      }
+      return;
+    }
     if (event.pointerId !== activePointerId) return;
+
     drag.move(event.clientX);
+    tap.move(event.clientX, event.clientY);
+    // Past the travel or duration threshold the gesture is a drag, so the pressed
+    // face stops being a candidate and the highlight goes immediately rather than
+    // waiting for the release.
+    if (!tap.candidate(event.timeStamp)) view.setArmedFace(null);
+  });
+
+  canvas.addEventListener('pointerleave', () => {
+    hoverAt = null;
+    if (activePointerId === null) view.setArmedFace(null);
   });
 
   canvas.addEventListener('pointerup', endDrag);

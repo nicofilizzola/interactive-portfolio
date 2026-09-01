@@ -6,22 +6,135 @@
 
 html,
 body {
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
   background: #f7f7f8;
+  color: #2a2c30;
+  font: 400 1rem/1.7 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Scrolling is the content's job now, so the blanket `overflow: hidden` is gone.
+   It comes back only while the big cube is up — there is nothing to scroll to
+   behind a scrim — and src/main.js owns that policy through one attribute. */
+html[data-scroll='locked'],
+html[data-scroll='locked'] body {
+  overflow: hidden;
+}
+
+#routes a {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  color: inherit;
+}
+
+/* Focusable means it must be visible when focused: an invisible focus ring is
+   not keyboard access. */
+#routes a:focus-visible {
+  width: auto;
+  height: auto;
+  clip-path: none;
+  margin: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  background: #f7f7f8;
+  outline: 2px solid #3b6fd6;
+  outline-offset: 2px;
+}
+
+#page {
+  position: relative;
+  z-index: 0;
+  max-width: 62ch;
+  /* The bottom padding keeps the last line clear of the docked cube. */
+  margin: 0 auto;
+  padding: 14vh 1.5rem 40vh;
+}
+
+#page h1 {
+  font-size: 1.75rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+#page h1:focus-visible {
+  outline: 2px solid #3b6fd6;
+  outline-offset: 4px;
+}
+
+#page .page-hash {
+  margin-top: 0.35rem;
+  color: #8a8d93;
+  font-size: 0.8125rem;
+}
+
+#page p {
+  color: #4a4d53;
+}
+
+#page .page-hash + p {
+  margin-top: 2.5rem;
+}
+
+#page p + p {
+  margin-top: 1.1rem;
+}
+
+#scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: #f7f7f8;
+  opacity: 0.82;
+  pointer-events: none;
 }
 
 #scene {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
   display: block;
-  width: 100vw;
-  height: 100vh;
   /* Required, not polish: without it the browser claims a horizontal drag for
      its own gesture handling before pointermove fires, and a downward drag
-     triggers pull-to-refresh on Android. overflow: hidden does not prevent it. */
+     triggers pull-to-refresh on Android. overflow: hidden does not prevent it.
+     Harmless while docked, where the canvas takes no pointer events at all. */
   touch-action: none;
   cursor: grab;
+  /* The canvas is full-viewport in EVERY phase — that is what lets the cube
+     animate from centre to the bottom edge in one continuous motion — so it must
+     not also swallow clicks on the article text underneath. Only the phase where
+     the big cube is up takes pointer events. */
+  pointer-events: none;
 }
 
-#scene:active {
+html[data-phase='resting'] #scene {
+  pointer-events: auto;
+}
+
+html[data-phase='resting'] #scene:active {
   cursor: grabbing;
+}
+
+#dock {
+  position: fixed;
+  left: 50%;
+  z-index: 3;
+  transform: translateX(-50%);
+  /* src/main.js writes width, height, and bottom from the live dock framing;
+     these are the floor, so a 62 px drawn cube on a phone stays tappable. */
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+#dock:focus-visible {
+  outline: 2px solid #3b6fd6;
+  outline-offset: 3px;
+  border-radius: 4px;
 }

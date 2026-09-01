@@ -21,13 +21,38 @@ export function createDragSpin({ revsPerViewport, releaseTau, velocityTau, maxSp
   let lastGain = 0;
 
   return {
+    // Returns the coast speed it just cancelled, in rev/s. Pressing a coasting
+    // cube grabs it: without the zeroing, a tap would re-throw the cube at its
+    // current speed instead of stopping it dead. The RETURN VALUE is what lets
+    // the caller tell a brake from a navigation — one tap must not do both, so
+    // src/pick.js rejects a tap whose press cancelled more than
+    // PICK.tapMaxEntrySpeedRevs.
     start(x) {
+      const cancelledRevs = Math.abs(velocity) / TAU;
       dragging = true;
       lastApplied = x;
       latest = x;
-      // Pressing a coasting cube grabs it: without this, a tap would re-throw
-      // the cube at its current speed instead of stopping it dead.
       velocity = 0;
+      return cancelledRevs;
+    },
+
+    // Stop a coast with no pointer involved. Esc, the dock button, and the back
+    // button all begin a dock transition without a press, so none of them go
+    // through start(); if the cube were coasting, its yaw would keep advancing
+    // through the transition while the transition's own yaw snapshot stayed
+    // fixed, and the docked pose would jump at the end.
+    //
+    // Also abandons any gesture in flight, not only a coast: pointer capture
+    // keeps delivering pointermove after CSS pointer-events stops mattering, so
+    // a press that outlives its phase (Esc mid-drag, say) must not keep driving
+    // the yaw through a transition it was never part of. `dragging = false`
+    // makes update() take the not-dragging branch (adding velocity * dt, now 0,
+    // so the yaw freezes), and `lastApplied = latest` means the eventual end()
+    // folds in nothing.
+    brake() {
+      velocity = 0;
+      dragging = false;
+      lastApplied = latest;
     },
 
     move(x) {

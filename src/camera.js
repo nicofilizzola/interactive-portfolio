@@ -18,3 +18,10 @@ export function entranceStartY(distance, fovDeg, radius) {
   // is fully hidden even with an antialiasing fringe.
   return visibleHalfHeight(distance, fovDeg) + radius + 0.2;
 }
+
+// World units to CSS pixels at the plane the camera frames. The dock's size is
+// specified in pixels (DOCK in src/config.js), so this is what converts it into
+// the scale and the world-space Y the renderer needs.
+export function pixelsPerWorldUnit(distance, fovDeg, viewportHeightPx) {
+  return viewportHeightPx / (2 * visibleHalfHeight(distance, fovDeg));
+}

@@ -123,15 +123,32 @@ otherwise become a failing test.
    `resting`, so the scrim would never receive one. Task 11 makes the scrim purely visual
    (`pointer-events: none`); miss-taps come from the raycast, per §9d.
 
+**Errata in this plan document itself**, distinct from the spec errata above: four small
+mistakes were introduced while *writing this plan* rather than while deriving it from the
+spec, and were caught and independently verified during execution, then corrected in place so
+the document matches what shipped. (1) The architecture reference table below transcribed the
+`1920×1080` and `1000×1000` `dockY` values wrong (`−1.9584` and `−1.9312`); both are
+inconsistent with their own row's `halfHeight`/`dockScale`/px-per-unit columns, which give
+`−1.9576` and `−1.9368` — Task 4's own test block repeated the same slip and is corrected
+alongside it. (2) Task 7's `pointerToNdc` implementation was written as
+`-((((clientY - rect.top) / rect.height) * 2) - 1)`, which evaluates to `-0` at screen centre;
+`toEqual` distinguishes `-0` from `+0`, so the plan's own centre-point test would have failed
+against the plan's own code. The algebraically identical `1 - ((clientY - rect.top) / rect.height) * 2`
+ships instead. (3) Task 9's top-face sample point `(960, 470)` was never on the projected +Y
+band at 1920×1080 (the band spans `y` in `[318, 386)` at `x = 960`; `y = 470` lands on the −X
+face) — corrected to `(960, 350)`, the band's midpoint. (4) Task 5 Step 4 and Task 6 Step 4
+each miscounted their own test code's `it()` blocks: 18, not 17, for `dock.test.js`; 23, not
+24, for `navstate.test.js`.
+
 ## Architecture reference: the numbers, derived
 
 Framing at `FIT_MARGIN` 1.6, FOV 45. `pxPerWorldUnit = viewportHeight / (2 × visibleHalfHeight)`.
 
 | Viewport | Camera z | Half-height | px/unit | Silhouette cap | `dockScale` | `dockY` |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1920×1080 | 5.3524 | 2.2170 | 243.58 | 64 (cap 172.8) | 0.11612 | −1.9584 |
+| 1920×1080 | 5.3524 | 2.2170 | 243.58 | 64 (cap 172.8) | 0.11612 | −1.9576 |
 | 1440×900 | 5.3524 | 2.2170 | 202.97 | 64 (cap 144.0) | 0.13936 | −1.9057 |
-| 1000×1000 | 5.3524 | 2.2170 | 225.53 | 64 (cap 160.0) | 0.12542 | −1.9312 |
+| 1000×1000 | 5.3524 | 2.2170 | 225.53 | 64 (cap 160.0) | 0.12542 | −1.9368 |
 | 390×844 | 11.5831 | 4.7979 | 87.955 | **62.4** (cap binds) | 0.31354 | −4.0907 |
 
 **Why the dock size is a CSS-pixel size and not a scale factor.** Camera distance varies with
@@ -782,9 +799,16 @@ describe('the dock framing', () => {
   // Derived in the plan's architecture reference. The dock button box and the
   // dock transition target both read these, so they are pinned here.
   const CASES = [
-    { w: 1920, h: 1080, silhouette: 64, scale: 0.11612, y: -1.9584 },
+    // The plan's reference table lists this row's y as -1.9584, but that value
+    // is inconsistent with the same row's own halfHeight (2.2170), dockScale
+    // (0.11612), and px/unit (243.58) columns: plugging those into the dock.js
+    // derivation gives -1.95758, not -1.9584. Verified independently (see the
+    // task-4 report) — a second, undocumented table slip distinct from errata 1.
+    { w: 1920, h: 1080, silhouette: 64, scale: 0.11612, y: -1.9576 },
     { w: 1440, h: 900, silhouette: 64, scale: 0.13936, y: -1.9057 },
-    { w: 1000, h: 1000, silhouette: 64, scale: 0.12542, y: -1.9312 },
+    // Same slip as the 1920x1080 row above: the table's -1.9312 is inconsistent
+    // with its own halfHeight/dockScale/px-per-unit columns, which give -1.93683.
+    { w: 1000, h: 1000, silhouette: 64, scale: 0.12542, y: -1.9368 },
     // The 16% cap binds below ~400 px of minimum dimension. The spec's own table
     // omits the cap on this row and reports -4.079; see the plan's errata 1.
     { w: 390, h: 844, silhouette: 62.4, scale: 0.31354, y: -4.0907 },
@@ -1299,7 +1323,7 @@ export function fadeOpacity(mode, progress, contentFadeStart) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/dock.test.js`
-Expected: PASS — 17 cases.
+Expected: PASS — 18 cases.
 
 - [ ] **Step 5: Commit**
 
@@ -1707,7 +1731,7 @@ export function reduce(state, event) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run tests/navstate.test.js`
-Expected: PASS — 24 cases, covering every row of spec §11's transition table.
+Expected: PASS — 23 cases, covering every row of spec §11's transition table.
 
 - [ ] **Step 5: Commit**
 
@@ -1952,7 +1976,7 @@ export function createTapTracker({ tapMaxTravelPx, tapMaxDurationMs, tapMaxEntry
 export function pointerToNdc(clientX, clientY, rect) {
   return {
     x: ((clientX - rect.left) / rect.width) * 2 - 1,
-    y: -((((clientY - rect.top) / rect.height) * 2) - 1),
+    y: 1 - ((clientY - rect.top) / rect.height) * 2,
   };
 }
 ```
@@ -2327,7 +2351,15 @@ describe('the resting pose puts a route boundary at dead screen centre', () => {
     const view = restingView();
     // Well above centre but inside the silhouette: the top face reads as a
     // narrow band across the upper third of the cube.
-    expect(hitFaceIndex(view, 960, 470)).toBe(2); // +Y, #/work
+    //
+    // Sample point re-derived from the shipped framing, per the brief's own
+    // instruction not to loosen the assertion if the projected band moved: a
+    // pixel sweep of the resting pose at 1920x1080 (x=960) found the +Y band
+    // spanning y in [318, 386) before the current geometry/camera fit, not the
+    // brief's y=470 (which lands past the band, on -X). y=350 sits at the
+    // band's midpoint, 32px clear of either edge, and stays face 2 across
+    // x in [900, 1020], so it is not a knife-edge pick.
+    expect(hitFaceIndex(view, 960, 350)).toBe(2); // +Y, #/work
   });
 
   it('misses the cube entirely near the corners of the viewport', () => {

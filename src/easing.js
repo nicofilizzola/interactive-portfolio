@@ -19,6 +19,13 @@ export function smoothStep(t) {
   return x * x * (3 - 2 * x);
 }
 
+// Quintic smoothstep. Both velocity and acceleration are zero at each end, so
+// the dock spin settles without the angular-acceleration cutoff of smoothStep.
+export function smootherStep(t) {
+  const x = clamp01(t);
+  return x * x * x * (x * (x * 6 - 15) + 10);
+}
+
 // The dock transition's curve. Zero derivative at BOTH ends, and symmetric about
 // (0.5, 0.5). The entrance uses easeOutCubic because it arrives already at
 // speed; the dock starts from a standstill at screen centre, where an ease-out

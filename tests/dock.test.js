@@ -167,7 +167,7 @@ describe('dockState', () => {
     }
 
     const peakDegreesPerSecond = (peakRadiansPerSecond * 180) / Math.PI;
-    expect(peakDegreesPerSecond).toBeCloseTo(675, 2);
+    expect(peakDegreesPerSecond).toBeCloseTo(843.75, 2);
     expect(peakDegreesPerSecond / 30).toBeLessThan(45);
   });
 
@@ -189,8 +189,8 @@ describe('dockSpin', () => {
   });
 
   it('removes every added revolution under reduced motion', () => {
-    // At 0.12 s, one smoothStep revolution plus the worst snap would reach
-    // 168.8 degrees per frame at 30 fps. Keep only the bounded snap.
+    // At 0.12 s, one smootherStep revolution plus the worst snap would reach
+    // 210.9 degrees per frame at 30 fps. Keep only the bounded snap.
     expect(dockSpin(true, DOCK.spinRevolutions)).toBe(0);
   });
 });

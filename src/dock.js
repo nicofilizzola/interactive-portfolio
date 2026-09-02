@@ -1,4 +1,4 @@
-import { easeInOutCubic, smoothStep } from './easing.js';
+import { easeInOutCubic, smootherStep } from './easing.js';
 import { clamp01, lerp } from './math.js';
 
 const TAU = Math.PI * 2;
@@ -21,10 +21,10 @@ export function dockSpin(reduced, revolutions) {
   return reduced ? 0 : revolutions;
 }
 
-// Pure dock transition. Position and scale retain easeInOutCubic. Yaw uses the
-// lower-peak smoothStep curve so one revolution stays well below the cube's
-// strobing ceiling. Expanding runs this same function at 1 - progress and is an
-// exact backward mirror.
+// Pure dock transition. Position and scale retain easeInOutCubic. Yaw uses
+// smootherStep so velocity and acceleration both reach zero at each end while
+// staying below the cube's strobing ceiling. Expanding runs this same function
+// at 1 - progress and is an exact backward mirror.
 export function dockState(progress, opts) {
   const p = clamp01(progress);
   const travel = easeInOutCubic(p);
@@ -35,7 +35,7 @@ export function dockState(progress, opts) {
     // The resting Y is 0 (ENTRANCE.endY); the caller adds the float on top.
     y: lerp(0, opts.dockY, travel),
     scale: lerp(1, opts.dockScale, travel),
-    yaw: opts.yaw + turn * smoothStep(p),
+    yaw: opts.yaw + turn * smootherStep(p),
   };
 }
 

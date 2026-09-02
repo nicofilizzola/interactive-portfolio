@@ -30,8 +30,9 @@ Requirements:
 2. Rotation ease from fast entrance spin down to complete stop as cube settle in middle.
 3. Cube start small, grow through animation — look like it move closer to viewer.
 4. After entrance, cube hold pose still and drift gentle up and down forever. Drift ramp in
-   smooth and start before entrance finish, so no dead beat and no motion switch on. All
-   horizontal rotation come from viewer drag, none automatic.
+   smooth and start before entrance finish, so no dead beat and no motion switch on. While
+   resting, all horizontal rotation come from viewer drag; dock transitions add the only
+   automatic post-entrance yaw.
 5. Viewer drag horizontal to spin cube. Release throw it, cube coast to stop.
 6. Tap a cube face to go to that face's section. Cube shrink and travel to bottom middle of
    screen in one continuous move while page arrive. Five face have route; bottom face never
@@ -72,10 +73,10 @@ Requirements:
   landing is exact and identical at any frame rate. Keep three's default `XYZ` Euler order
   with roll at 0; any other order makes the tilt wobble as the cube turns.
 - **Idle rotation:** none. Both angles freeze on the landing pose when the entrance ends and
-  the cube holds it indefinitely — edge-on is now where it stays, not a moment it passes
-  through. This supersedes the 2026-08-28 spec's section-7 option A ("land and drift") and
-  its 0.035 rev/s idle drift. The only autonomous motion left on the page is the vertical
-  float.
+  the cube holds it indefinitely while resting — edge-on is now where it stays, not a moment
+  it passes through. This supersedes the 2026-08-28 spec's section-7 option A ("land and
+  drift") and its 0.035 rev/s idle drift. The only autonomous motion while resting is the
+  vertical float; dock transitions have their own finite yaw spin.
 - **Idle float:** vertical only. A sine bob of amplitude 0.08 world units and period 5.0 s,
   multiplied by a `smoothStep` amplitude envelope over `rampDuration` 1.5 s and started
   `overlap` 0.7 s *before* the entrance ends. The envelope has `S(0) = 0` **and**
@@ -169,9 +170,13 @@ Requirements:
   would draw an 83 px nav button on a desktop and 30 px on a phone. `src/scene.js` derives
   `dockScale` from `DOCK.silhouettePx` 64 (capped at 16% of the smaller viewport dimension,
   which binds below ~400 px) and `dockY` from `DOCK.bottomMarginPx` 24, both re-derived on
-  resize. The dock transition runs on `easeInOutCubic` over `DOCK.duration` 0.9 s, and the yaw
-  **snaps** by the shortest signed angle to the nearest `SETTLE.yaw + k·90°` — at most 45° —
-  rather than spinning, so the docked cube reads as a cube and reopening is an exact mirror.
+  resize. Position and scale run on `easeInOutCubic` over `DOCK.duration` 0.9 s. Every
+  shrinking or expanding transition also turns through one whole yaw revolution on quintic
+  `smootherStep`, plus the shortest snap to `SETTLE.yaw + k·90°`. Whole revolutions preserve
+  the edge-on dock pose and exact 64 px silhouette; `smootherStep` brings angular velocity
+  and acceleration to zero at both ends and limits the worst 405° turn to 843.75°/s, or
+  28.125° per frame at 30 fps. Expanding is the exact backward mirror. Under
+  `prefers-reduced-motion`, the added revolution is removed and only the snap remains.
 - **Tap versus drag:** a face click is a *failed* drag, defined negatively on the existing
   pointer plumbing — no `click` listener, since `click` fires after a drag too and its target is
   the canvas. A gesture is a tap iff it stays within `PICK.tapMaxTravelPx` 8 px of the press

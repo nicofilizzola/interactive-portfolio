@@ -92,6 +92,11 @@ export const FLOAT = {
 export const DOCK = {
   duration: 0.9,
   reducedDuration: 0.12,
+  // One whole turn keeps 37.5% headroom below the cube's 45-degree-per-frame
+  // strobing ceiling at 30 fps: worst case is a 405-degree turn peaking at
+  // 843.75 deg/s, or 28.125 deg/frame. The exact cap is 1.675 revolutions at 0.9 s;
+  // shortening duration lowers that cap proportionally, so tune them together.
+  spinRevolutions: 1,
   silhouettePx: 64,
   maxSilhouetteFraction: 0.16,
   bottomMarginPx: 24,

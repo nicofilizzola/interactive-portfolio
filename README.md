@@ -4,9 +4,11 @@ Minimal, geometric portfolio. A single cube enters from off-screen top, grows an
 the center over 3.5 seconds, then holds its pose while a gentle vertical drift ramps in out of
 the arrival. Drag it horizontally to spin it; let go mid-swipe and it coasts to a stop.
 
-The cube is also the navigation. Tap a face and it travels to a bottom-centre dock in one
-continuous move while that section's page arrives; press the docked cube and it comes back up
-over the page as a nav overlay. Five sections, one per pickable face — the bottom face cannot
+The cube is also the navigation. Every trip between the large nav pose and the bottom-centre
+dock includes one whole yaw revolution: shrinking turns forward and expanding unwinds the
+same turn backward. Tap a face and the cube travels to the dock while that section's page
+arrives; press the docked cube and it comes back up over the page as a nav overlay. Five
+sections, one per pickable face — the bottom face cannot
 be seen at the resting tilt, so it has none. Routing is hash-based, so every deep link works
 on a static host with no configuration.
 
@@ -62,10 +64,10 @@ achromatic — blue is still the nominated accent but nothing on the page uses i
 is not set up yet — `npm run build` produces a static `dist/` that can be hosted anywhere.
 
 The cube's entrance ends on a fixed pose: a vertical edge facing the viewer, tilted 15 degrees
-so the top face shows. From there it holds that pose exactly — nothing rotates on its own. The
-only autonomous motion is a gentle vertical bob, which ramps in with a smoothstep envelope and
-starts just before the entrance lands, so it emerges from the arrival rather than switching on
-after it; every turn of the cube is the viewer's, dragged in by hand.
+so the top face shows. While resting it holds that yaw exactly; only the gentle vertical bob
+moves autonomously. The bob ramps in with a smoothstep envelope and starts just before the
+entrance lands, so it emerges from the arrival rather than switching on after it. Viewer drag
+provides resting rotation; dock transitions provide the only automatic post-entrance turns.
 
 That resting pose puts the boundary between two sections exactly down the middle of the cube,
 so the face under the pointer is lightened to `#e4e6ea` before a click commits. The page is

@@ -14,7 +14,7 @@ import {
 import { entranceRotation, entranceState, floatOffset } from './animation.js';
 import { createDragSpin } from './drag.js';
 import { createScene } from './scene.js';
-import { contentFade, dockState, fadeOpacity, yawSnapDelta } from './dock.js';
+import { contentFade, dockSpin, dockState, fadeOpacity, yawSnapDelta } from './dock.js';
 import { clamp01 } from './math.js';
 import { initialState, reduce } from './navstate.js';
 import { createTapTracker, pointerToNdc } from './pick.js';
@@ -27,6 +27,8 @@ import {
 } from './routes.js';
 import { renderPage } from './pages.js';
 import { createInput } from './input.js';
+
+const TAU = Math.PI * 2;
 
 // A blank off-white page is the intended degradation when WebGL is unavailable
 // (blocklisted driver, exhausted contexts, hardened browser). Reaching it via an
@@ -95,6 +97,9 @@ let fadeMode = 'hold';
 // The cube's total yaw when the transition in flight began. A snapshot, not a
 // live read: a coasting drag must not move the target mid-flight.
 let transitionYaw = SETTLE.yaw;
+// Whole revolutions selected when the current dock transition began. Snapshot
+// once so a live reduced-motion preference change cannot alter a turn mid-flight.
+let transitionSpin = 0;
 // Has the cross-fade's DOM swap happened yet for the transition in flight?
 let swapped = false;
 
@@ -217,6 +222,7 @@ function onNavChange(previous, next) {
 
   if (startedTransition) {
     transitionYaw = lastYaw;
+    transitionSpin = dockSpin(reducedMotion.matches, DOCK.spinRevolutions);
     swapped = false;
     // Esc, the dock button, and the back button all start a transition with no
     // pointer press, so none of them went through drag.start(). Stop any coast
@@ -232,10 +238,12 @@ function onNavChange(previous, next) {
 
   if (endedTransition) {
     if (previous.phase === 'shrinking') {
-      // Fold the snap in ONCE, so lastYaw keeps agreeing with the drawn pose for
-      // every later drag and transition — and so `expanding` starts from an
-      // already-snapped yaw, where the delta is 0 and the pose holds.
-      yawOffset += yawSnapDelta(transitionYaw, SETTLE.yaw);
+      // Fold the snap and whole turns in ONCE, so lastYaw keeps agreeing
+      // numerically with the drawn pose for every later drag and transition.
+      // Whole turns look identical but omitting them would leave the two values
+      // separated by exactly TAU * transitionSpin.
+      yawOffset +=
+        yawSnapDelta(transitionYaw, SETTLE.yaw) + TAU * transitionSpin;
       view.setArmedFace(null);
     }
     if ((fadeMode === 'cross' && !swapped) || fadeMode === 'out') mountContent(next.route);
@@ -307,14 +315,15 @@ function frame() {
     scale = view.dockScale;
   } else if (nav.phase === 'shrinking' || nav.phase === 'expanding') {
     const progress = clamp01((elapsed - nav.phaseStartedAt) / dockDuration());
-    // Expanding is the same curve run backwards. easeInOutCubic is symmetric
-    // about (0.5, 0.5), so the reverse pass retraces the forward one exactly and
-    // the cube never appears to have moved while docked.
+    // Expanding runs the same curves backwards. easeInOutCubic for travel and
+    // smootherStep for yaw are both symmetric about (0.5, 0.5), so the reverse
+    // pass retraces the forward one exactly.
     const step = dockState(nav.phase === 'shrinking' ? progress : 1 - progress, {
       dockY: view.dockY,
       dockScale: view.dockScale,
       yaw: transitionYaw,
       settleYaw: SETTLE.yaw,
+      spinRevolutions: transitionSpin,
     });
 
     y = step.y;

@@ -1,16 +1,13 @@
-import { easeInOutCubic } from './easing.js';
+import { easeInOutCubic, smootherStep } from './easing.js';
 import { clamp01, lerp } from './math.js';
 
+const TAU = Math.PI * 2;
 const QUARTER_TURN = Math.PI / 2;
 
 // The shortest signed angle from `yaw` to the nearest settleYaw + k * 90 degrees
-// — at most 45 degrees either way. The docked cube should read as a cube
-// (edge-on shows three faces; face-on reads as a flat square) and should keep the
-// recorded resting pose, but the viewer may have dragged it anywhere.
-//
-// Snap, do not spin: a multi-revolution turn would be "similar to the appearance
-// animation" in the literal sense and wrong here. The entrance's spin is a
-// curtain-raiser; this is a 0.9 s UI transition.
+// — at most 45 degrees either way. The docked cube must remain edge-on so its
+// pose and CSS-pixel silhouette stay exact. A transition may add whole turns to
+// this snap; whole turns preserve the same final pose.
 export function yawSnapDelta(yaw, settleYaw) {
   const offset = yaw - settleYaw;
   // Wrap the offset into (-45, +45] degrees around the nearest quarter turn.
@@ -18,24 +15,27 @@ export function yawSnapDelta(yaw, settleYaw) {
   return -wrapped;
 }
 
-// The dock transition, as a pure function of progress. 0 is the resting pose at
-// screen centre; 1 is the docked pose.
-//
-// EXPANDING IS THIS SAME FUNCTION RUN AT 1 - progress. easeInOutCubic is
-// symmetric about (0.5, 0.5), so the reverse pass retraces the forward one
-// exactly; and because reopening starts from an already-snapped yaw, the snap
-// delta is then 0 and the cube never appears to have moved while docked.
-//
-// `opts.yaw` is a snapshot taken by the caller when the transition starts, not a
-// live read: a coasting drag must not move the target mid-flight.
+// Option B: every dock transition spins unless reduced motion removes the
+// decorative revolution. Route and phase do not affect this policy.
+export function dockSpin(reduced, revolutions) {
+  return reduced ? 0 : revolutions;
+}
+
+// Pure dock transition. Position and scale retain easeInOutCubic. Yaw uses
+// smootherStep so velocity and acceleration both reach zero at each end while
+// staying below the cube's strobing ceiling. Expanding runs this same function
+// at 1 - progress and is an exact backward mirror.
 export function dockState(progress, opts) {
-  const eased = easeInOutCubic(clamp01(progress));
+  const p = clamp01(progress);
+  const travel = easeInOutCubic(p);
+  const turn =
+    yawSnapDelta(opts.yaw, opts.settleYaw) + TAU * (opts.spinRevolutions ?? 0);
 
   return {
     // The resting Y is 0 (ENTRANCE.endY); the caller adds the float on top.
-    y: lerp(0, opts.dockY, eased),
-    scale: lerp(1, opts.dockScale, eased),
-    yaw: opts.yaw + yawSnapDelta(opts.yaw, opts.settleYaw) * eased,
+    y: lerp(0, opts.dockY, travel),
+    scale: lerp(1, opts.dockScale, travel),
+    yaw: opts.yaw + turn * smootherStep(p),
   };
 }
 

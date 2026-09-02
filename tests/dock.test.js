@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { contentFade, dockState, fadeOpacity, yawSnapDelta } from '../src/dock.js';
+import { contentFade, dockSpin, dockState, fadeOpacity, yawSnapDelta } from '../src/dock.js';
 import { DOCK, SETTLE } from '../src/config.js';
 
+const TAU = Math.PI * 2;
 const QUARTER = Math.PI / 2;
 const OPTS = { dockY: -2, dockScale: 0.11612, yaw: SETTLE.yaw, settleYaw: SETTLE.yaw };
 
@@ -92,6 +93,105 @@ describe('dockState', () => {
       lastY = state.y;
       lastScale = state.scale;
     }
+  });
+
+  it('lands on a resting pose after zero, one, or two whole revolutions', () => {
+    for (const spinRevolutions of [0, 1, 2]) {
+      for (let degrees = -720; degrees <= 720; degrees += 1) {
+        const state = dockState(1, {
+          ...OPTS,
+          yaw: SETTLE.yaw + (degrees * Math.PI) / 180,
+          spinRevolutions,
+        });
+        const quarterTurns = (state.yaw - SETTLE.yaw) / QUARTER;
+        expect(quarterTurns).toBeCloseTo(Math.round(quarterTurns), 9);
+      }
+    }
+  });
+
+  it('adds exactly the requested whole revolution', () => {
+    const withoutSpin = dockState(1, { ...OPTS, yaw: SETTLE.yaw + 0.31 });
+    const withSpin = dockState(1, {
+      ...OPTS,
+      yaw: SETTLE.yaw + 0.31,
+      spinRevolutions: 1,
+    });
+
+    expect(withSpin.yaw - withoutSpin.yaw).toBeCloseTo(TAU, 12);
+  });
+
+  it('mirrors yaw exactly when run backwards with a spin', () => {
+    for (const spinRevolutions of [0, 1, 2]) {
+      const opts = { ...OPTS, yaw: SETTLE.yaw + 0.31, spinRevolutions };
+      const turn = yawSnapDelta(opts.yaw, opts.settleYaw) + TAU * spinRevolutions;
+
+      for (let i = 0; i <= 200; i += 1) {
+        const p = i / 200;
+        const forward = dockState(p, opts);
+        const backward = dockState(1 - p, opts);
+        expect(forward.yaw + backward.yaw).toBeCloseTo(2 * opts.yaw + turn, 12);
+      }
+    }
+  });
+
+  it('turns monotonically forward when at least one revolution is requested', () => {
+    for (const offset of [-QUARTER / 2, 0, QUARTER / 2]) {
+      const opts = { ...OPTS, yaw: SETTLE.yaw + offset, spinRevolutions: 1 };
+      let previousYaw = dockState(0, opts).yaw;
+
+      for (let i = 1; i <= 1000; i += 1) {
+        const yaw = dockState(i / 1000, opts).yaw;
+        expect(yaw).toBeGreaterThanOrEqual(previousYaw - 1e-12);
+        previousYaw = yaw;
+      }
+    }
+  });
+
+  it('keeps the worst-case spin below the 30 fps strobing ceiling', () => {
+    const opts = {
+      ...OPTS,
+      yaw: SETTLE.yaw - QUARTER / 2,
+      spinRevolutions: 1,
+    };
+    const sampleDuration = DOCK.duration / 1000;
+    let previousYaw = dockState(0, opts).yaw;
+    let peakRadiansPerSecond = 0;
+
+    for (let i = 1; i <= 1000; i += 1) {
+      const yaw = dockState(i / 1000, opts).yaw;
+      peakRadiansPerSecond = Math.max(
+        peakRadiansPerSecond,
+        Math.abs(yaw - previousYaw) / sampleDuration,
+      );
+      previousYaw = yaw;
+    }
+
+    const peakDegreesPerSecond = (peakRadiansPerSecond * 180) / Math.PI;
+    expect(peakDegreesPerSecond).toBeCloseTo(675, 2);
+    expect(peakDegreesPerSecond / 30).toBeLessThan(45);
+  });
+
+  it('does not move position or scale onto the yaw curve', () => {
+    for (let i = 0; i <= 100; i += 1) {
+      const p = i / 100;
+      const withoutSpin = dockState(p, OPTS);
+      const withSpin = dockState(p, { ...OPTS, spinRevolutions: 1 });
+      expect(withSpin.y).toBe(withoutSpin.y);
+      expect(withSpin.scale).toBe(withoutSpin.scale);
+    }
+  });
+});
+
+describe('dockSpin', () => {
+  it('uses the configured revolutions for every normal-motion transition', () => {
+    expect(dockSpin(false, 1)).toBe(1);
+    expect(dockSpin(false, 2)).toBe(2);
+  });
+
+  it('removes every added revolution under reduced motion', () => {
+    // At 0.12 s, one smoothStep revolution plus the worst snap would reach
+    // 168.8 degrees per frame at 30 fps. Keep only the bounded snap.
+    expect(dockSpin(true, DOCK.spinRevolutions)).toBe(0);
   });
 });
 

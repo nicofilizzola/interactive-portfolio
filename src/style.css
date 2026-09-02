@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -9,7 +17,7 @@ body {
   min-height: 100%;
   background: #f7f7f8;
   color: #2a2c30;
-  font: 400 1rem/1.7 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font: 400 1rem/1.7 'Geist', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 /* Scrolling is the content's job now, so the blanket `overflow: hidden` is gone.

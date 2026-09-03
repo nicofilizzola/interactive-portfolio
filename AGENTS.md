@@ -138,10 +138,11 @@ Requirements:
   variable WOFF2 under the SIL Open Font License. Body copy remains weight 400, content
   headings remain 500, and the landing `Welcome` uses 450. The existing system stack is a
   loading/error fallback only; the site makes no font-CDN request.
-- **Reduced motion:** `prefers-reduced-motion` is honored **for the dock transitions only**,
-  clamped to `DOCK.reducedDuration` 0.12 s. Motion there gates *navigation* rather than
-  decoration — unclamped, a motion-sensitive viewer waits 0.9 s of animation to reach a page,
-  twice per round trip. The entrance's 3.5 s is still intentionally not honored.
+- **Reduced motion:** `prefers-reduced-motion` clamps dock transitions to
+  `DOCK.reducedDuration` 0.12 s and changes the `Welcome` reveal to a 150 ms opacity-only
+  fade. Motion there gates *navigation* rather than decoration — unclamped, a motion-sensitive
+  viewer waits 0.9 s of animation to reach a page, twice per round trip. The entrance's 3.5 s
+  is still intentionally unchanged.
 - **Deployment:** not set up. Scope ends at a working dev server and a static production build.
 - **Routing:** hash-based (`#/work`), not the History API. Deployment is not set up, and the
   History API would make correct production behavior depend on a host rewrite rule that does

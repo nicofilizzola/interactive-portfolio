@@ -20,7 +20,7 @@
 - Later returns to the landing page show the final state immediately after the landing view reaches `resting`; they never replay the reveal.
 - Reduced motion uses a `150ms` opacity-only reveal with no translation or animated clipping. The cube entrance remains unchanged.
 - Stable heading/cube separation is at least 16 CSS pixels across the required viewport, full-yaw, and maximum-float matrix.
-- Welcome typography starts at Geist weight `450`, size `clamp(3rem, min(16vw, 16vh), 10rem)`, line-height `0.9`, letter-spacing `-0.045em`, and color `#2a2c30`.
+- Welcome typography starts at Geist weight `450`, size `clamp(2.25rem, min(11vw, 11vh), 7rem)`, line-height `0.9`, letter-spacing `-0.045em`, and color `#2a2c30`.
 - Geist applies site-wide: copy stays weight `400`, existing content headings stay `500`, and the current system stack remains fallback only.
 - Self-host the official Geist v1.7.2 variable WOFF2 and OFL text. Add no npm dependency, font CDN, Google Fonts URL, or JavaScript font loader.
 - Preserve the document-first hidden navigation, one relevant `<h1>` per route, content focus management, hash routing, deep links, blank WebGL-failure fallback, and all cube interactions.
@@ -413,7 +413,7 @@ Insert the following in `src/style.css` after the `#routes a:focus-visible` bloc
   max-width: calc(100vw - 2rem);
   overflow: hidden;
   color: #2a2c30;
-  font-size: clamp(3rem, min(16vw, 16vh), 10rem);
+  font-size: clamp(2.25rem, min(11vw, 11vh), 7rem);
   font-weight: 450;
   line-height: 0.9;
   letter-spacing: -0.045em;

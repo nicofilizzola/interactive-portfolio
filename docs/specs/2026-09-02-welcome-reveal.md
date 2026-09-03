@@ -54,7 +54,7 @@ Starting typography values:
 | --- | --- |
 | Family | `Geist`, with the existing system stack as fallback only |
 | Weight | `450` |
-| Size | `clamp(3rem, min(16vw, 16vh), 10rem)` |
+| Size | `clamp(2.25rem, min(11vw, 11vh), 7rem)` |
 | Line height | `0.9` |
 | Letter spacing | `-0.045em` |
 | Color | Existing `#2a2c30` foreground |

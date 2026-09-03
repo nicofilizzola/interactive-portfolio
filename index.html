@@ -17,6 +17,10 @@
       <a href="#/play">Playground</a>
       <a href="#/contact">Contact</a>
     </nav>
+    <!-- Landing-only DOM heading. It starts hidden so a failed WebGL renderer
+         preserves the intended blank off-white fallback; main.js reveals it only
+         after renderer setup. Pointer input continues to belong to the canvas. -->
+    <h1 id="welcome" hidden>Welcome</h1>
     <main id="page"></main>
     <!-- Purely visual: miss-taps come from the raycast (the canvas sits above
          this and takes the pointer events), so this never needs any of its own. -->

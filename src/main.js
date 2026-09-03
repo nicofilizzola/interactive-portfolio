@@ -27,6 +27,11 @@ import {
 } from './routes.js';
 import { renderPage } from './pages.js';
 import { createInput } from './input.js';
+import {
+  completeWelcomeAnimation,
+  initialWelcomeState,
+  reduceWelcome,
+} from './welcome.js';
 
 const TAU = Math.PI * 2;
 
@@ -39,6 +44,7 @@ const canvas = document.getElementById('scene');
 const page = document.getElementById('page');
 const scrim = document.getElementById('scrim');
 const dockButton = document.getElementById('dock');
+const welcomeHeading = document.getElementById('welcome');
 
 let renderer;
 try {
@@ -84,6 +90,7 @@ if (!boot.known) window.history.replaceState(null, '', hashForRoute(boot.route))
 // already up.
 let elapsed = boot.route === null ? 0 : ENTRANCE.duration + FLOAT.rampDuration;
 let nav = initialState(boot.route, elapsed);
+let welcomeState = initialWelcomeState(boot.route);
 
 // The cube's total yaw as drawn on the last frame. Read when a dock transition
 // starts, so it interpolates from where the viewer actually left the cube.
@@ -154,7 +161,27 @@ function mountContent(route) {
   if (heading !== null) heading.focus({ preventScroll: true });
 }
 
+function applyWelcomeDom() {
+  const previousMode = welcomeHeading.dataset.mode;
+  if (welcomeState.mode === 'exiting' && previousMode !== 'exiting') {
+    // Preserve the opacity currently painted when a departure interrupts the
+    // reveal; switching directly from a reveal to a 1 -> 0 animation flashes.
+    welcomeHeading.style.setProperty(
+      '--welcome-exit-from-opacity',
+      getComputedStyle(welcomeHeading).opacity,
+    );
+  }
+  if (welcomeState.mode !== 'exiting') {
+    welcomeHeading.style.removeProperty('--welcome-exit-from-opacity');
+  }
+  welcomeHeading.dataset.mode = welcomeState.mode;
+  const isLandingHeading =
+    nav.route === null && (nav.phase === 'entering' || nav.phase === 'resting');
+  welcomeHeading.setAttribute('aria-hidden', String(!isLandingHeading));
+}
+
 function applyDom() {
+  applyWelcomeDom();
   // `overlay` is derived, not stored — it is exactly this. See src/navstate.js.
   const overlay = nav.route !== null && nav.phase === 'resting';
   root.dataset.phase = nav.phase;
@@ -195,7 +222,7 @@ function handleTap(clientX, clientY) {
   dispatch(route === undefined ? { type: 'missTap' } : { type: 'faceTap', route });
 }
 
-function dispatch(event) {
+function dispatch(event, { render = true } = {}) {
   const previous = nav;
   nav = reduce(nav, { ...event, at: elapsed });
 
@@ -210,10 +237,11 @@ function dispatch(event) {
   }
 
   if (nav === previous) return;
-  onNavChange(previous, nav);
+  onNavChange(previous, nav, render);
 }
 
-function onNavChange(previous, next) {
+function onNavChange(previous, next, render = true) {
+  welcomeState = reduceWelcome(welcomeState, previous, next);
   const startedTransition =
     (next.phase === 'shrinking' || next.phase === 'expanding') && previous.phase !== next.phase;
   const endedTransition =
@@ -260,7 +288,7 @@ function onNavChange(previous, next) {
     mountContent(next.route);
   }
 
-  applyDom();
+  if (render) applyDom();
 }
 
 const input = createInput({
@@ -290,13 +318,14 @@ function frame() {
   const dragYaw = drag.update(dt, Math.min(window.innerWidth, window.innerHeight));
 
   if (nav.phase === 'entering' && entrance.done) {
-    dispatch({ type: 'entranceDone' });
+    dispatch({ type: 'entranceDone' }, { render: false });
     // The entering phase ignores navigation to protect the landing pose (see
     // src/navstate.js), so a hashchange that arrived mid-entrance was dropped
     // rather than driving the machine. Reconcile against the URL now that the
     // entrance has landed.
     const live = parseHash(window.location.hash).route;
-    if (live !== nav.route) dispatch({ type: 'hashChange', route: live });
+    if (live !== nav.route) dispatch({ type: 'hashChange', route: live }, { render: false });
+    applyDom();
   }
 
   // Only while the big cube is up and no drag is running: during a drag the
@@ -338,11 +367,12 @@ function frame() {
     }
 
     if (progress >= 1) {
-      dispatch({ type: 'transitionDone' });
+      dispatch({ type: 'transitionDone' }, { render: false });
       // A hashchange that arrives mid-transition is ignored by the machine, so
       // reconcile against the URL now that the transition has landed.
       const live = parseHash(window.location.hash).route;
-      if (live !== nav.route) dispatch({ type: 'hashChange', route: live });
+      if (live !== nav.route) dispatch({ type: 'hashChange', route: live }, { render: false });
+      applyDom();
     }
   }
 
@@ -357,9 +387,31 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
+function handleWelcomeAnimationEnd(event) {
+  if (event.target !== welcomeHeading) return;
+
+  let completedMode = null;
+  if (event.animationName === 'welcome-exit') completedMode = 'exiting';
+  if (
+    event.animationName === 'welcome-reveal' ||
+    event.animationName === 'welcome-reveal-reduced'
+  ) {
+    completedMode = 'revealing';
+  }
+  if (completedMode === null) return;
+
+  const next = completeWelcomeAnimation(welcomeState, completedMode);
+  if (next === welcomeState) return;
+  welcomeState = next;
+  applyWelcomeDom();
+}
+
 if (renderer) {
   applyViewportSize();
   window.addEventListener('resize', applyViewportSize);
+
+  welcomeHeading.hidden = false;
+  welcomeHeading.addEventListener('animationend', handleWelcomeAnimationEnd);
 
   mountContent(nav.route);
   applyDom();

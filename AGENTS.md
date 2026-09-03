@@ -40,6 +40,10 @@ Requirements:
 7. Docked cube is nav button. Press it, big cube come back up over current page behind scrim.
    Pick face to go somewhere else, or Esc or tap background to close. Closing is not
    navigation and leave no history entry.
+8. After the initial entrance finishes, one large DOM heading, `Welcome`, reveals above the
+   cube with a 750 ms masked upward fade, then remains visible and motionless. It is not a 3D
+   object and never tracks the cube's float. It fades out when navigation begins, stays hidden
+   over content and the nav overlay, and returns without replaying its reveal.
 
 ## Tech Stack
 
@@ -50,7 +54,7 @@ Requirements:
 - Real content. The five sections ship as differentiated lorem ipsum.
 - A sixth section, or any route on the cube's bottom face — it cannot be reached.
 - Any 3D object other than the cube. No per-page 3D, no face textures or labels.
-- Visible nav text, breadcrumbs, or a menu. The hidden `<nav>` is an accessibility
+- Additional visible landing copy, visible nav text, breadcrumbs, or a menu. The hidden `<nav>` is an accessibility
   affordance, not a design element.
 - Page transitions beyond the cube move and a content fade — no slides, no shared-element
   animation between the cube and the page.
@@ -125,11 +129,15 @@ Requirements:
   the edge-on silhouette spans 51% of the smaller viewport dimension (it was 60.5% at 1.35).
   Raising it also raises `entranceStartY`, which lowers the `startSpin` strobing ceiling —
   re-measure that before changing it.
-- **Page:** off-white background (`#f7f7f8`). No *visible* DOM text on the landing page —
-  the canvas is the whole landing page. The document does carry a `<nav>` of five links,
-  visually hidden with `clip-path` but focusable and placed first so it doubles as skip
-  navigation: a raycast has no keyboard equivalent, so without it keyboard users would have
-  no navigation at all. Content routes are ordinary scrolling DOM under a fixed canvas.
+- **Page:** off-white background (`#f7f7f8`). The landing page has exactly one visible DOM
+  heading, `Welcome`, above the cube. No other visible landing copy, nav text, breadcrumbs, or
+  menu is present. The document still carries a `<nav>` of five links, visually hidden with
+  `clip-path` but focusable and placed first so it doubles as skip navigation. Content routes
+  are ordinary scrolling DOM under a fixed canvas.
+- **Typography:** Geist Sans is the site-wide primary typeface, self-hosted as the official
+  variable WOFF2 under the SIL Open Font License. Body copy remains weight 400, content
+  headings remain 500, and the landing `Welcome` uses 450. The existing system stack is a
+  loading/error fallback only; the site makes no font-CDN request.
 - **Reduced motion:** `prefers-reduced-motion` is honored **for the dock transitions only**,
   clamped to `DOCK.reducedDuration` 0.12 s. Motion there gates *navigation* rather than
   decoration — unclamped, a motion-sensitive viewer waits 0.9 s of animation to reach a page,

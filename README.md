@@ -12,6 +12,10 @@ sections, one per pickable face — the bottom face cannot
 be seen at the resting tilt, so it has none. Routing is hash-based, so every deep link works
 on a static host with no configuration.
 
+When the initial entrance lands, a large Geist `Welcome` heading reveals above the cube and
+then stays motionless while the cube continues to float. Later returns show it immediately
+without replaying the reveal.
+
 ## Prerequisites
 
 Node `^20.19.0 || >=22.12.0` (the floor comes from Vite 8). Check with `node --version`.
@@ -51,6 +55,11 @@ Node `^20.19.0 || >=22.12.0` (the floor comes from Vite 8). Check with `node --v
 - `src/input.js` — the DOM event wiring: pointer, keyboard, hash, and dock-button listeners.
 - `src/main.js` — renderer, animation loop, and composition.
 
+- `src/welcome.js` — pure presentation lifecycle for the landing heading; it distinguishes
+  the true landing route from the large cube used as a content-page nav overlay.
+- `public/fonts/` — the locally hosted Geist Sans variable WOFF2 and its SIL Open Font
+  License.
+
 Everything except `src/main.js` and `src/input.js` is unit-tested in plain Node (no browser,
 no WebGL, no jsdom); the renderer is deliberately kept out of `scene.js` to keep it that way,
 and three's math and `Raycaster` run headlessly. `src/main.js` and `src/input.js` are the only
@@ -58,6 +67,10 @@ browser-coupled files: the five modules that carry the nav logic — `routes.js`
 `navstate.js`, `pick.js`, `dock.js` — import neither `three` nor the DOM.
 
 ## Design direction
+
+Geist Sans is the site-wide primary typeface, served locally with no font-CDN dependency. The
+landing page has one visible DOM heading, `Welcome`; the hidden route navigation remains an
+accessibility affordance rather than a visible menu.
 
 Very minimal and geometric. Light gray is the primary color; the page is currently fully
 achromatic — blue is still the nominated accent but nothing on the page uses it. Deployment

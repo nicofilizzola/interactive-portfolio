@@ -162,6 +162,18 @@ function mountContent(route) {
 }
 
 function applyWelcomeDom() {
+  const previousMode = welcomeHeading.dataset.mode;
+  if (welcomeState.mode === 'exiting' && previousMode !== 'exiting') {
+    // Preserve the opacity currently painted when a departure interrupts the
+    // reveal; switching directly from a reveal to a 1 -> 0 animation flashes.
+    welcomeHeading.style.setProperty(
+      '--welcome-exit-from-opacity',
+      getComputedStyle(welcomeHeading).opacity,
+    );
+  }
+  if (welcomeState.mode !== 'exiting') {
+    welcomeHeading.style.removeProperty('--welcome-exit-from-opacity');
+  }
   welcomeHeading.dataset.mode = welcomeState.mode;
   const isLandingHeading =
     nav.route === null && (nav.phase === 'entering' || nav.phase === 'resting');
@@ -210,7 +222,7 @@ function handleTap(clientX, clientY) {
   dispatch(route === undefined ? { type: 'missTap' } : { type: 'faceTap', route });
 }
 
-function dispatch(event) {
+function dispatch(event, { render = true } = {}) {
   const previous = nav;
   nav = reduce(nav, { ...event, at: elapsed });
 
@@ -225,10 +237,10 @@ function dispatch(event) {
   }
 
   if (nav === previous) return;
-  onNavChange(previous, nav);
+  onNavChange(previous, nav, render);
 }
 
-function onNavChange(previous, next) {
+function onNavChange(previous, next, render = true) {
   welcomeState = reduceWelcome(welcomeState, previous, next);
   const startedTransition =
     (next.phase === 'shrinking' || next.phase === 'expanding') && previous.phase !== next.phase;
@@ -276,7 +288,7 @@ function onNavChange(previous, next) {
     mountContent(next.route);
   }
 
-  applyDom();
+  if (render) applyDom();
 }
 
 const input = createInput({
@@ -306,13 +318,14 @@ function frame() {
   const dragYaw = drag.update(dt, Math.min(window.innerWidth, window.innerHeight));
 
   if (nav.phase === 'entering' && entrance.done) {
-    dispatch({ type: 'entranceDone' });
+    dispatch({ type: 'entranceDone' }, { render: false });
     // The entering phase ignores navigation to protect the landing pose (see
     // src/navstate.js), so a hashchange that arrived mid-entrance was dropped
     // rather than driving the machine. Reconcile against the URL now that the
     // entrance has landed.
     const live = parseHash(window.location.hash).route;
-    if (live !== nav.route) dispatch({ type: 'hashChange', route: live });
+    if (live !== nav.route) dispatch({ type: 'hashChange', route: live }, { render: false });
+    applyDom();
   }
 
   // Only while the big cube is up and no drag is running: during a drag the
@@ -354,11 +367,12 @@ function frame() {
     }
 
     if (progress >= 1) {
-      dispatch({ type: 'transitionDone' });
+      dispatch({ type: 'transitionDone' }, { render: false });
       // A hashchange that arrives mid-transition is ignored by the machine, so
       // reconcile against the URL now that the transition has landed.
       const live = parseHash(window.location.hash).route;
-      if (live !== nav.route) dispatch({ type: 'hashChange', route: live });
+      if (live !== nav.route) dispatch({ type: 'hashChange', route: live }, { render: false });
+      applyDom();
     }
   }
 

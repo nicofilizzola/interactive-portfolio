@@ -115,7 +115,7 @@ html[data-scroll='locked'] body {
 @keyframes welcome-exit {
   from {
     visibility: visible;
-    opacity: 1;
+    opacity: var(--welcome-exit-from-opacity, 1);
     transform: translate(-50%, 0);
     clip-path: inset(0);
   }

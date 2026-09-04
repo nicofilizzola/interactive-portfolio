@@ -1,8 +1,12 @@
 # Interactive 3D Portfolio
 
 Minimal, geometric portfolio. A single cube enters from off-screen top, grows and slows into
-the center over 3.5 seconds, then holds its pose while a gentle vertical drift ramps in out of
-the arrival. Drag it horizontally to spin it; let go mid-swipe and it coasts to a stop.
+a responsive landing anchor below viewport center over 3.5 seconds, then holds its pose while
+a gentle vertical drift ramps in out of the arrival. When it lands, a large Geist `Welcome`
+heading reveals above it. Their neutral bounds form one vertically centered responsive
+composition with a deliberate gap; the heading stays motionless while the cube continues to
+float. Later returns show the heading immediately without replaying the reveal. Drag the cube
+horizontally to spin it; let go mid-swipe and it coasts to a stop.
 
 The cube is also the navigation. Every trip between the large nav pose and the bottom-centre
 dock includes one whole yaw revolution: shrinking turns forward and expanding unwinds the
@@ -45,11 +49,17 @@ Node `^20.19.0 || >=22.12.0` (the floor comes from Vite 8). Check with `node --v
   hash string appears.
 - `src/pages.js` — the five sections' content as data, plus a pure HTML string builder.
 - `src/navstate.js` — the nav phase machine as `reduce(state, event) -> state`.
+- `src/welcome.js` — pure presentation lifecycle for the landing heading; it distinguishes
+  the true landing route from the large cube used as a content-page nav overlay.
+- `src/composition.js` — pure CSS-pixel composition math that centers the heading and
+  projected cube together and derives the cube's responsive landing anchor.
 - `src/pick.js` — tap-vs-drag discrimination and pointer-to-NDC conversion.
 - `src/dock.js` — the dock transition, the yaw snap, and the content fade curves, all as pure
   functions of progress.
 - `src/input.js` — the DOM event wiring: pointer, keyboard, hash, and dock-button listeners.
 - `src/main.js` — renderer, animation loop, and composition.
+- `public/fonts/` — the locally hosted Geist Sans variable WOFF2 and its SIL Open Font
+  License.
 
 Everything except `src/main.js` and `src/input.js` is unit-tested in plain Node (no browser,
 no WebGL, no jsdom); the renderer is deliberately kept out of `scene.js` to keep it that way,
@@ -58,6 +68,10 @@ browser-coupled files: the five modules that carry the nav logic — `routes.js`
 `navstate.js`, `pick.js`, `dock.js` — import neither `three` nor the DOM.
 
 ## Design direction
+
+Geist Sans is the site-wide primary typeface, served locally with no font-CDN dependency. The
+landing page has one visible DOM heading, `Welcome`; the hidden route navigation remains an
+accessibility affordance rather than a visible menu.
 
 Very minimal and geometric. Light gray is the primary color; the page is currently fully
 achromatic — blue is still the nominated accent but nothing on the page uses it. Deployment

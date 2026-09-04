@@ -27,6 +27,12 @@ import {
 } from './routes.js';
 import { renderPage } from './pages.js';
 import { createInput } from './input.js';
+import {
+  completeWelcomeAnimation,
+  initialWelcomeState,
+  reduceWelcome,
+} from './welcome.js';
+import { centeredComposition, compositionGapPx } from './composition.js';
 
 const TAU = Math.PI * 2;
 
@@ -39,6 +45,7 @@ const canvas = document.getElementById('scene');
 const page = document.getElementById('page');
 const scrim = document.getElementById('scrim');
 const dockButton = document.getElementById('dock');
+const welcomeHeading = document.getElementById('welcome');
 
 let renderer;
 try {
@@ -84,6 +91,7 @@ if (!boot.known) window.history.replaceState(null, '', hashForRoute(boot.route))
 // already up.
 let elapsed = boot.route === null ? 0 : ENTRANCE.duration + FLOAT.rampDuration;
 let nav = initialState(boot.route, elapsed);
+let welcomeState = initialWelcomeState(boot.route);
 
 // The cube's total yaw as drawn on the last frame. Read when a dock transition
 // starts, so it interpolates from where the viewer actually left the cube.
@@ -112,6 +120,22 @@ function dockDuration() {
   return reducedMotion.matches ? DOCK.reducedDuration : DOCK.duration;
 }
 
+function applyWelcomeComposition(width, height) {
+  const headingHeight = welcomeHeading.getBoundingClientRect().height;
+  const rootFontPx = Number.parseFloat(getComputedStyle(root).fontSize);
+  const gap = compositionGapPx(width, height, rootFontPx);
+  const layout = centeredComposition({
+    viewportHeight: height,
+    headingHeight,
+    gap,
+    zeroBounds: view.projectCubeBounds({ y: 0 }),
+    unitBounds: view.projectCubeBounds({ y: 1 }),
+  });
+
+  view.setLandingY(layout.landingY);
+  welcomeHeading.style.top = `${layout.headingTopPx}px`;
+}
+
 function applyViewportSize() {
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -123,6 +147,7 @@ function applyViewportSize() {
   // innerHeight is the visible one — which stretches the cube.
   renderer.setSize(width, height);
   view.resize(width, height);
+  applyWelcomeComposition(width, height);
   applyDockButtonBox();
 }
 
@@ -154,7 +179,15 @@ function mountContent(route) {
   if (heading !== null) heading.focus({ preventScroll: true });
 }
 
+function applyWelcomeDom() {
+  welcomeHeading.dataset.mode = welcomeState.mode;
+  const isLandingHeading =
+    nav.route === null && (nav.phase === 'entering' || nav.phase === 'resting');
+  welcomeHeading.setAttribute('aria-hidden', String(!isLandingHeading));
+}
+
 function applyDom() {
+  applyWelcomeDom();
   // `overlay` is derived, not stored — it is exactly this. See src/navstate.js.
   const overlay = nav.route !== null && nav.phase === 'resting';
   root.dataset.phase = nav.phase;
@@ -214,6 +247,7 @@ function dispatch(event) {
 }
 
 function onNavChange(previous, next) {
+  welcomeState = reduceWelcome(welcomeState, previous, next);
   const startedTransition =
     (next.phase === 'shrinking' || next.phase === 'expanding') && previous.phase !== next.phase;
   const endedTransition =
@@ -280,7 +314,11 @@ function frame() {
   const dt = Math.min(timer.getDelta(), MAX_FRAME_DELTA);
   elapsed += dt;
 
-  const entrance = entranceState(elapsed, { ...ENTRANCE, startY: view.startY });
+  const entrance = entranceState(elapsed, {
+    ...ENTRANCE,
+    startY: view.startY,
+    endY: view.landingY,
+  });
   // Closed form, not an accumulator: the cube lands on the exact same pose at any
   // frame rate, and both angles freeze dead when the entrance ends.
   const rotation = entranceRotation(elapsed, ROTATION);
@@ -319,6 +357,7 @@ function frame() {
     // smootherStep for yaw are both symmetric about (0.5, 0.5), so the reverse
     // pass retraces the forward one exactly.
     const step = dockState(nav.phase === 'shrinking' ? progress : 1 - progress, {
+      restY: view.landingY,
       dockY: view.dockY,
       dockScale: view.dockScale,
       yaw: transitionYaw,
@@ -357,7 +396,29 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
+function handleWelcomeAnimationEnd(event) {
+  if (event.target !== welcomeHeading) return;
+
+  let completedMode = null;
+  if (event.animationName === 'welcome-exit') completedMode = 'exiting';
+  if (
+    event.animationName === 'welcome-reveal' ||
+    event.animationName === 'welcome-reveal-reduced'
+  ) {
+    completedMode = 'revealing';
+  }
+  if (completedMode === null) return;
+
+  const next = completeWelcomeAnimation(welcomeState, completedMode);
+  if (next === welcomeState) return;
+  welcomeState = next;
+  applyWelcomeDom();
+}
+
 if (renderer) {
+  welcomeHeading.hidden = false;
+  welcomeHeading.addEventListener('animationend', handleWelcomeAnimationEnd);
+
   applyViewportSize();
   window.addEventListener('resize', applyViewportSize);
 

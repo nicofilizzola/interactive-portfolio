@@ -87,4 +87,13 @@ describe('reduceWelcome', () => {
 
     expect(next).toEqual({ mode: 'visible', initialRevealPending: false });
   });
+
+  it('keeps an in-progress exit through the reduced-motion dock completion', () => {
+    const exiting = { mode: 'exiting', initialRevealPending: false };
+    const shrinking = reduceWelcome(exiting, nav('resting'), nav('shrinking', 'work'));
+    const docked = reduceWelcome(shrinking, nav('shrinking', 'work'), nav('docked', 'work'));
+
+    expect(shrinking).toEqual(exiting);
+    expect(docked).toEqual(exiting);
+  });
 });

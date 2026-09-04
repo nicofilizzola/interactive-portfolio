@@ -23,7 +23,7 @@
 - Departure uses a `200ms` opacity-only fade and cannot delay routing or content mounting.
 - Later returns to the landing page show the final state immediately after the landing view reaches `resting`; they never replay the reveal.
 - Reduced motion uses a `150ms` opacity-only reveal with no translation or animated clipping. The cube entrance remains unchanged.
-- Welcome typography starts at Geist weight `450`, size `clamp(3rem, min(16vw, 16vh), 10rem)`, line-height `0.9`, letter-spacing `-0.045em`, and color `#2a2c30`.
+- Welcome typography starts at Geist weight `450`, size `clamp(2.25rem, min(11vw, 11vh), 7rem)`, line-height `0.9`, letter-spacing `-0.045em`, and color `#2a2c30`.
 - Geist applies site-wide: copy stays weight `400`, existing content headings stay `500`, and the current system stack remains fallback only.
 - Self-host the official Geist v1.7.2 variable WOFF2 and OFL text. Add no npm dependency, font CDN, Google Fonts URL, or JavaScript font loader.
 - Preserve the document-first hidden navigation, one relevant `<h1>` per route, content focus management, hash routing, deep links, blank WebGL-failure fallback, and all cube interactions.
@@ -175,6 +175,15 @@ describe('reduceWelcome', () => {
 
     expect(next).toEqual({ mode: 'visible', initialRevealPending: false });
   });
+
+  it('keeps an in-progress exit through the reduced-motion dock completion', () => {
+    const exiting = { mode: 'exiting', initialRevealPending: false };
+    const shrinking = reduceWelcome(exiting, nav('resting'), nav('shrinking', 'work'));
+    const docked = reduceWelcome(shrinking, nav('shrinking', 'work'), nav('docked', 'work'));
+
+    expect(shrinking).toEqual(exiting);
+    expect(docked).toEqual(exiting);
+  });
 });
 ```
 
@@ -208,6 +217,8 @@ export function reduceWelcome(state, previousNav, nextNav) {
     const leavingVisibleLanding =
       previousNav.route === LANDING_ROUTE &&
       (state.mode === 'revealing' || state.mode === 'visible');
+
+    if (state.mode === 'exiting') return state;
 
     return {
       mode: leavingVisibleLanding ? 'exiting' : 'hidden',
@@ -254,8 +265,8 @@ npm test -- tests/welcome.test.js
 npm test
 ```
 
-Expected: the focused file reports 9 passing tests. The full suite reports 15 passing files
-and 230 passing tests: the existing 14 files/221 tests plus the new lifecycle coverage.
+Expected: the focused file reports 10 passing tests. The full suite reports 15 passing files
+and 231 passing tests: the existing 14 files/221 tests plus the new lifecycle coverage.
 
 - [ ] **Step 5: Commit the pure lifecycle**
 
@@ -453,7 +464,7 @@ const VIEWPORTS = [
 ];
 
 function headingHeightPx(width, height) {
-  const fontSize = Math.min(160, Math.max(48, Math.min(0.16 * width, 0.16 * height)));
+  const fontSize = Math.min(112, Math.max(36, Math.min(0.11 * width, 0.11 * height)));
   return 0.9 * fontSize;
 }
 
@@ -901,7 +912,7 @@ Insert the following in `src/style.css` after the `#routes a:focus-visible` bloc
   max-width: calc(100vw - 2rem);
   overflow: hidden;
   color: #2a2c30;
-  font-size: clamp(3rem, min(16vw, 16vh), 10rem);
+  font-size: clamp(2.25rem, min(11vw, 11vh), 7rem);
   font-weight: 450;
   line-height: 0.9;
   letter-spacing: -0.045em;
@@ -954,7 +965,7 @@ Insert the following in `src/style.css` after the `#routes a:focus-visible` bloc
 @keyframes welcome-exit {
   from {
     visibility: visible;
-    opacity: 1;
+    opacity: var(--welcome-exit-from-opacity, 1);
     transform: translate(-50%, 0);
     clip-path: inset(0);
   }
@@ -1101,6 +1112,16 @@ Add this function immediately before `applyDom()`:
 
 ```js
 function applyWelcomeDom() {
+  const previousMode = welcomeHeading.dataset.mode;
+  if (welcomeState.mode === 'exiting' && previousMode !== 'exiting') {
+    welcomeHeading.style.setProperty(
+      '--welcome-exit-from-opacity',
+      getComputedStyle(welcomeHeading).opacity,
+    );
+  }
+  if (welcomeState.mode !== 'exiting') {
+    welcomeHeading.style.removeProperty('--welcome-exit-from-opacity');
+  }
   welcomeHeading.dataset.mode = welcomeState.mode;
   const isLandingHeading =
     nav.route === null && (nav.phase === 'entering' || nav.phase === 'resting');
@@ -1128,7 +1149,9 @@ At the top of `onNavChange(previous, next)`, before calculating `startedTransiti
 
 Do not call this from ignored navigation events: `dispatch()` already returns before
 `onNavChange()` when `nav === previous`. This preserves the initial pending reveal until a
-real transition occurs.
+real transition occurs. Preserve the batched `{ render: false }` reconciliation calls from
+the transition-stability fix so an ignored mid-transition hash never paints an intermediate
+welcome state for one frame.
 
 - [ ] **Step 7: Settle CSS animations without accepting stale completions**
 
@@ -1172,8 +1195,8 @@ git diff --check
 
 Expected:
 
-- 9 welcome lifecycle tests pass.
-- Full suite reports 16 passing test files and 239 passing tests.
+- 10 welcome lifecycle tests pass.
+- Full suite reports 16 passing test files and 240 passing tests.
 - Vite production build succeeds.
 - `git diff --check` reports no whitespace errors.
 
@@ -1405,7 +1428,7 @@ git status --short
 
 Expected:
 
-- 16 test files and 239 tests pass.
+- 16 test files and 240 tests pass.
 - Vite production build succeeds.
 - Both public font artifacts are present in `dist/fonts`.
 - `git diff --check` prints no errors.

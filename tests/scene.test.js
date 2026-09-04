@@ -23,7 +23,7 @@ const VIEWPORTS = [
 ];
 
 function headingHeightPx(width, height) {
-  const fontSize = Math.min(160, Math.max(48, Math.min(0.16 * width, 0.16 * height)));
+  const fontSize = Math.min(112, Math.max(36, Math.min(0.11 * width, 0.11 * height)));
   return 0.9 * fontSize;
 }
 

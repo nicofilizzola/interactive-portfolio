@@ -14,6 +14,11 @@ export function reduceWelcome(state, previousNav, nextNav) {
       previousNav.route === LANDING_ROUTE &&
       (state.mode === 'revealing' || state.mode === 'visible');
 
+    // A dock transition changes the nav route to content before it completes.
+    // Keep an exit already on screen alive until its animationend; otherwise a
+    // reduced-motion dock (120ms) cancels the required 200ms fade.
+    if (state.mode === 'exiting') return state;
+
     return {
       mode: leavingVisibleLanding ? 'exiting' : 'hidden',
       initialRevealPending: false,

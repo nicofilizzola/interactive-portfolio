@@ -62,7 +62,7 @@ html[data-scroll='locked'] body {
   max-width: calc(100vw - 2rem);
   overflow: hidden;
   color: #2a2c30;
-  font-size: clamp(3rem, min(16vw, 16vh), 10rem);
+  font-size: clamp(2.25rem, min(11vw, 11vh), 7rem);
   font-weight: 450;
   line-height: 0.9;
   letter-spacing: -0.045em;
@@ -115,7 +115,7 @@ html[data-scroll='locked'] body {
 @keyframes welcome-exit {
   from {
     visibility: visible;
-    opacity: 1;
+    opacity: var(--welcome-exit-from-opacity, 1);
     transform: translate(-50%, 0);
     clip-path: inset(0);
   }

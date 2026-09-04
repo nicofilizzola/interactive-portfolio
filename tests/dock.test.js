@@ -4,7 +4,13 @@ import { DOCK, SETTLE } from '../src/config.js';
 
 const TAU = Math.PI * 2;
 const QUARTER = Math.PI / 2;
-const OPTS = { dockY: -2, dockScale: 0.11612, yaw: SETTLE.yaw, settleYaw: SETTLE.yaw };
+const OPTS = {
+  restY: -0.4,
+  dockY: -2,
+  dockScale: 0.11612,
+  yaw: SETTLE.yaw,
+  settleYaw: SETTLE.yaw,
+};
 
 describe('yawSnapDelta', () => {
   it('is zero when the cube is already on a resting pose', () => {
@@ -41,7 +47,7 @@ describe('yawSnapDelta', () => {
 describe('dockState', () => {
   it('starts at the resting pose', () => {
     const state = dockState(0, OPTS);
-    expect(state.y).toBe(0);
+    expect(state.y).toBeCloseTo(OPTS.restY, 12);
     expect(state.scale).toBe(1);
     expect(state.yaw).toBeCloseTo(OPTS.yaw, 12);
   });
@@ -57,7 +63,7 @@ describe('dockState', () => {
   });
 
   it('clamps progress instead of overshooting the dock', () => {
-    expect(dockState(-1, OPTS).y).toBe(0);
+    expect(dockState(-1, OPTS).y).toBeCloseTo(OPTS.restY, 12);
     expect(dockState(4, OPTS).y).toBeCloseTo(OPTS.dockY, 12);
   });
 
@@ -69,7 +75,7 @@ describe('dockState', () => {
       const p = i / 20;
       const forward = dockState(p, OPTS);
       const backward = dockState(1 - p, OPTS);
-      expect(forward.y + backward.y).toBeCloseTo(OPTS.dockY, 9);
+      expect(forward.y + backward.y).toBeCloseTo(OPTS.restY + OPTS.dockY, 9);
       expect(forward.scale + backward.scale).toBeCloseTo(1 + OPTS.dockScale, 9);
     }
   });

@@ -1,6 +1,6 @@
 export const CUBE_SIZE = 1.6;
 export const CUBE_RADIUS = (CUBE_SIZE * Math.sqrt(3)) / 2;
-export const FIT_MARGIN = 1.6;
+export const FIT_MARGIN = 1.9;
 export const CAMERA_FOV = 45;
 
 export const COLORS = {
@@ -16,15 +16,14 @@ export const COLORS = {
 
 export const ENTRANCE = {
   duration: 3.5,
-  endY: 0,
   startScale: 0.15,
   endScale: 1,
   // 4.5 sits under the ceiling, with headroom. The cube's yaw is 90-degree
   // symmetric, so past 45 degrees of yaw per rendered frame the spin reads as
   // running backwards. The cube enters frame earlier on taller viewports, where
   // easeOutQuart has cut away less of the peak — measured against FIT_MARGIN
-  // 1.6 with the scale ramp included, the 30 fps cap is 5.78 in landscape, 5.10
-  // at 9:16, and 4.90 on a 9:19.5 phone, where 4.5 lands at 41.3 degrees per
+  // 1.9 with the scale ramp included, the 30 fps cap is 5.54 in landscape, 4.92
+  // at 9:16, and 4.74 on a 9:19.5 phone, where 4.5 lands at 42.7 degrees per
   // frame. Raising FIT_MARGIN lowers every one of those; re-measure the
   // tall-viewport case before touching either number.
   startSpin: 4.5,
@@ -50,23 +49,18 @@ export const FLOAT = {
   amplitude: 0.08,
   period: 5.0,
   rampDuration: 1.5,
-  // The float's clock starts 0.7 s BEFORE the entrance ends. By p = 0.80
-  // (t = 2.80 s) the cube is within 7.4 px of centre at 99.7% scale, turning at
-  // 2.6 deg/s — visually parked — and it then sat still for the remaining 0.7 s
-  // before the bob switched on. The viewer saw arrive / hold / twitch, three
-  // beats, where the intent is one continuous settling. The overlap costs
-  // nothing legible from the entrance and buys the whole dead beat back.
+  // The float's clock starts 0.65 s BEFORE the entrance ends, at entrance
+  // progress p = 0.814. It remains part of the arrival rather than switching on
+  // after a dead beat, while accommodating the smaller framing and the lower
+  // responsive landing target used by the welcome composition.
   //
-  // 0.7 is the CEILING, not a taste knob. Through the overlap the entrance
-  // offset and the float's first upward half-cycle add, and two maxima have to
-  // stay under `amplitude`: the entrance offset at the onset (startY * 0.008,
-  // worst 0.0760 at a 280x1000 viewport) and the float's own first peak
-  // (0.96977 * amplitude = 0.0776). At 1.0 s the sum reaches 0.0887 and the
-  // bound in tests/scene.test.js must be widened too. Raising FIT_MARGIN raises
-  // startY and eats the same headroom.
+  // Through the overlap the entrance tail and the float's first upward
+  // half-cycle add. At 0.7 s the new 280x1000 composition reaches 0.09322 world
+  // units relative to its landing target, beyond `amplitude`. At 0.65 s the
+  // reference matrix peaks at 0.07758, preserving the 0.08-unit bound.
   //
-  // Consequence, deliberate: floatOffset(3.5) is 0.0277430, not 0.
-  overlap: 0.7,
+  // Consequence, deliberate: floatOffset(3.5) is 0.0233616, not 0.
+  overlap: 0.65,
 };
 
 // The dock transition, and the docked cube's geometry.

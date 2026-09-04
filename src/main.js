@@ -32,6 +32,7 @@ import {
   initialWelcomeState,
   reduceWelcome,
 } from './welcome.js';
+import { centeredComposition, compositionGapPx } from './composition.js';
 
 const TAU = Math.PI * 2;
 
@@ -119,6 +120,22 @@ function dockDuration() {
   return reducedMotion.matches ? DOCK.reducedDuration : DOCK.duration;
 }
 
+function applyWelcomeComposition(width, height) {
+  const headingHeight = welcomeHeading.getBoundingClientRect().height;
+  const rootFontPx = Number.parseFloat(getComputedStyle(root).fontSize);
+  const gap = compositionGapPx(width, height, rootFontPx);
+  const layout = centeredComposition({
+    viewportHeight: height,
+    headingHeight,
+    gap,
+    zeroBounds: view.projectCubeBounds({ y: 0 }),
+    unitBounds: view.projectCubeBounds({ y: 1 }),
+  });
+
+  view.setLandingY(layout.landingY);
+  welcomeHeading.style.top = `${layout.headingTopPx}px`;
+}
+
 function applyViewportSize() {
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -130,6 +147,7 @@ function applyViewportSize() {
   // innerHeight is the visible one — which stretches the cube.
   renderer.setSize(width, height);
   view.resize(width, height);
+  applyWelcomeComposition(width, height);
   applyDockButtonBox();
 }
 
@@ -308,7 +326,11 @@ function frame() {
   const dt = Math.min(timer.getDelta(), MAX_FRAME_DELTA);
   elapsed += dt;
 
-  const entrance = entranceState(elapsed, { ...ENTRANCE, startY: view.startY });
+  const entrance = entranceState(elapsed, {
+    ...ENTRANCE,
+    startY: view.startY,
+    endY: view.landingY,
+  });
   // Closed form, not an accumulator: the cube lands on the exact same pose at any
   // frame rate, and both angles freeze dead when the entrance ends.
   const rotation = entranceRotation(elapsed, ROTATION);
@@ -348,6 +370,7 @@ function frame() {
     // smootherStep for yaw are both symmetric about (0.5, 0.5), so the reverse
     // pass retraces the forward one exactly.
     const step = dockState(nav.phase === 'shrinking' ? progress : 1 - progress, {
+      restY: view.landingY,
       dockY: view.dockY,
       dockScale: view.dockScale,
       yaw: transitionYaw,
@@ -407,11 +430,11 @@ function handleWelcomeAnimationEnd(event) {
 }
 
 if (renderer) {
-  applyViewportSize();
-  window.addEventListener('resize', applyViewportSize);
-
   welcomeHeading.hidden = false;
   welcomeHeading.addEventListener('animationend', handleWelcomeAnimationEnd);
+
+  applyViewportSize();
+  window.addEventListener('resize', applyViewportSize);
 
   mountContent(nav.route);
   applyDom();

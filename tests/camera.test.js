@@ -56,8 +56,7 @@ describe('entranceStartY', () => {
 
 describe('pixelsPerWorldUnit', () => {
   it('converts world units to CSS pixels at the framing plane', () => {
-    // FIT_MARGIN 1.6, FOV 45: landscape camera z is 5.35242, portrait 390x844
-    // pulls back to 11.58306. Both are derived in the plan's reference table.
+    // Representative camera distances verify the conversion independently of live config.
     expect(pixelsPerWorldUnit(5.35242, 45, 1080)).toBeCloseTo(243.58, 1);
     expect(pixelsPerWorldUnit(5.35242, 45, 900)).toBeCloseTo(202.97, 1);
     expect(pixelsPerWorldUnit(11.58306, 45, 844)).toBeCloseTo(87.955, 2);

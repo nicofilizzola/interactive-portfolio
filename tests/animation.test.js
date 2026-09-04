@@ -335,13 +335,13 @@ describe('the shipped float configuration', () => {
   const SHIPPED = { ...FLOAT, duration: ENTRANCE.duration };
   const onset = ENTRANCE.duration - FLOAT.overlap;
 
-  it('ramps over 1.5 s and starts 0.7 s before the entrance ends', () => {
+  it('ramps over 1.5 s and starts 0.65 s before the entrance ends', () => {
     expect(FLOAT.rampDuration).toBe(1.5);
-    expect(FLOAT.overlap).toBe(0.7);
+    expect(FLOAT.overlap).toBe(0.65);
   });
 
-  it('leaves the float 0.0277430 u off centre when the entrance ends', () => {
-    expect(floatOffset(ENTRANCE.duration, SHIPPED)).toBeCloseTo(0.027743, 6);
+  it('leaves the float 0.0233616 u off centre when the entrance ends', () => {
+    expect(floatOffset(ENTRANCE.duration, SHIPPED)).toBeCloseTo(0.0233616, 6);
   });
 
   it('has zero velocity at the shipped onset, so nothing switches on', () => {

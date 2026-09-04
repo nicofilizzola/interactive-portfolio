@@ -56,7 +56,7 @@ html[data-scroll='locked'] body {
 
 #welcome {
   position: fixed;
-  top: clamp(1rem, 5vh, 5rem);
+  top: 0;
   left: 50%;
   z-index: 3;
   max-width: calc(100vw - 2rem);

@@ -97,11 +97,13 @@ describe('the bottom face is unreachable by construction', () => {
 
   it('reaches every side face across a full turn of yaw', () => {
     const view = createScene(RECT.width, RECT.height);
+    const bounds = view.projectCubeBounds();
+    const sampleX = bounds.left + bounds.width * 0.05;
     const reached = new Set();
 
     for (let degrees = 0; degrees < 360; degrees += 5) {
       view.cube.rotation.set(SETTLE.pitch, SETTLE.yaw + (degrees * Math.PI) / 180, 0);
-      const index = hitFaceIndex(view, 700, 540);
+      const index = hitFaceIndex(view, sampleX, RECT.height / 2);
       if (index !== null) reached.add(index);
     }
 

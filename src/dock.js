@@ -32,8 +32,8 @@ export function dockState(progress, opts) {
     yawSnapDelta(opts.yaw, opts.settleYaw) + TAU * (opts.spinRevolutions ?? 0);
 
   return {
-    // The resting Y is 0 (ENTRANCE.endY); the caller adds the float on top.
-    y: lerp(0, opts.dockY, travel),
+    // restY is the live centered-composition anchor; the caller adds the float.
+    y: lerp(opts.restY, opts.dockY, travel),
     scale: lerp(1, opts.dockScale, travel),
     yaw: opts.yaw + turn * smootherStep(p),
   };

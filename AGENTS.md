@@ -20,7 +20,7 @@ Page show one 3D cube float on screen. Cube arrive with entrance animation:
 
 | Aspect | Start | End |
 | --- | --- | --- |
-| Position | off-screen at the top | centered on screen |
+| Position | off-screen at the top | at the responsive group anchor below viewport center |
 | Scale | quite small | larger — reads as "closer" to the viewer |
 | Spin speed | fast | stopped — decay curve land on standstill |
 
@@ -41,9 +41,11 @@ Requirements:
    Pick face to go somewhere else, or Esc or tap background to close. Closing is not
    navigation and leave no history entry.
 8. After the initial entrance finishes, one large DOM heading, `Welcome`, reveals above the
-   cube with a 750 ms masked upward fade, then remains visible and motionless. It is not a 3D
-   object and never tracks the cube's float. It fades out when navigation begins, stays hidden
-   over content and the nav overlay, and returns without replaying its reveal.
+   cube with a 750 ms masked upward fade, then remains visible and motionless. The heading and
+   neutral settled cube are vertically centered as one responsive stack with a
+   `clamp(2rem, 5vmin, 4rem)` nominal gap. The heading is not a 3D object and never tracks the
+   cube's float. It fades out when navigation begins, stays hidden over content and the nav
+   overlay, and returns without replaying its reveal.
 
 ## Tech Stack
 
@@ -54,8 +56,8 @@ Requirements:
 - Real content. The five sections ship as differentiated lorem ipsum.
 - A sixth section, or any route on the cube's bottom face — it cannot be reached.
 - Any 3D object other than the cube. No per-page 3D, no face textures or labels.
-- Additional visible landing copy, visible nav text, breadcrumbs, or a menu. The hidden `<nav>` is an accessibility
-  affordance, not a design element.
+- Additional visible landing copy, visible nav text, breadcrumbs, or a menu. The hidden
+  `<nav>` is an accessibility affordance, not a design element.
 - Page transitions beyond the cube move and a content fade — no slides, no shared-element
   animation between the cube and the page.
 - Deployment. Scope ends at a working dev server and a static production build.
@@ -69,8 +71,8 @@ Requirements:
   so nothing snaps). Total 3.150 revolutions. 4.5 sits under the strobing ceiling with
   headroom: the cube's yaw is 90-degree symmetric, so a faster spin reads as running
   backwards on a 30 fps display. The limit is set by tall viewports, where the cube enters
-  frame earlier — measured at `FIT_MARGIN` 1.6 the 30 fps cap is 5.78 in landscape, 5.10 at
-  9:16, and 4.90 on a 9:19.5 phone, where 4.5 lands at 41.3 degrees per frame.
+  frame earlier — measured at `FIT_MARGIN` 1.9 the 30 fps cap is 5.54 in landscape, 4.92 at
+  9:16, and 4.74 on a 9:19.5 phone, where 4.5 lands at 42.7 degrees per frame.
 - **Resting pose:** the entrance lands on a defined pose — yaw 45 deg, pitch +15 deg,
   roll 0 — so a vertical edge faces the camera with the top face visible. The rotation is
   a closed-form function of elapsed time rather than a per-frame accumulator, so the
@@ -81,31 +83,24 @@ Requirements:
   it passes through. This supersedes the 2026-08-28 spec's section-7 option A ("land and
   drift") and its 0.035 rev/s idle drift. The only autonomous motion while resting is the
   vertical float; dock transitions have their own finite yaw spin.
-- **Idle float:** vertical only. A sine bob of amplitude 0.08 world units and period 5.0 s,
-  multiplied by a `smoothStep` amplitude envelope over `rampDuration` 1.5 s and started
-  `overlap` 0.7 s *before* the entrance ends. The envelope has `S(0) = 0` **and**
-  `S'(0) = 0`, so the float's position, velocity, and acceleration are all exactly 0 at its
-  onset; the entrance also arrives with zero velocity and zero acceleration, so the total
-  vertical motion is C² across the whole timeline and there is no order of derivative at
-  which anything jumps. (Not C³: the entrance's third derivative is `-6*startY/D³` on the
-  left and 0 on the right. Nothing visible depends on C³.) The overlap starts the bob at
-  `p = 0.80`, where the entrance is within 7.4 px of centre at 99.7% scale and turning at
-  2.6 deg/s — visually parked — so it costs nothing legible from the entrance and removes the
-  ~0.5 s dead beat that made the onset read as a second, unrelated event. Measured at 60 fps,
-  the quietest frame after `t = 2.5` went from 0.0001 px (dead still, at `t = 3.483`) to
-  0.0043 px at the bob's own trough, and the largest frame-to-frame jerk from 0.408 px at
-  exactly `t = 3.500` to 0.027 px.
-  **Consequence: `floatOffset(3.5)` is `0.0277430`, not 0**, and the cube's `y` at the end of
-  the entrance is no longer `ENTRANCE.endY` (`endY` remains the entrance's own target, which
-  it still hits exactly). 0.7 s is a ceiling, not taste: through the overlap the entrance
-  offset and the float's first upward half-cycle add, and both the entrance offset at the
-  onset (`startY * 0.008`, worst 0.0760 at 280x1000) and the float's own first peak (0.0776)
-  must stay under `amplitude` 0.08 — 3.0% of headroom at every tested aspect. At 1.0 s the sum
-  is 0.0887 and the in-frame bound in `tests/scene.test.js` must be widened; raising
-  `FIT_MARGIN` raises `startY` and eats the same headroom. Peak-to-peak travel is 10% of the
-  cube's edge length — defined against the cube, not the viewport, so changing `FIT_MARGIN`
-  does not change how it reads. **The landing pose is untouched:** it is a claim about yaw and
-  pitch, and the float moves neither.
+- **Idle float:** vertical only. A sine bob multiplied by a `smoothStep` amplitude envelope.
+  The envelope has `S(0) = 0` **and** `S'(0) = 0`, so the float's position, velocity, and
+  acceleration are all exactly 0 at its onset; the entrance also arrives with zero velocity
+  and zero acceleration, so the total vertical motion is C² across the whole timeline and
+  there is no order of derivative at which anything jumps. (Not C³: the entrance's third
+  derivative is `-6*startY/D³` on the left and 0 on the right. Nothing visible depends on
+  C³.) Peak-to-peak travel is 10% of the cube's edge length — defined against the cube, not
+  the viewport, so changing `FIT_MARGIN` does not change how it reads. The landing pose is
+  untouched: it is a claim about yaw and pitch, and the float moves neither.
+
+  The smooth-step amplitude envelope runs for `rampDuration` 1.5 s and starts `overlap`
+  0.65 s before the entrance ends, at entrance progress `p = 0.814`. Its zero position and
+  first derivative at onset preserve the existing C² handoff; amplitude remains 0.08 world
+  units and period remains 5.0 s. With `FIT_MARGIN` 1.9 and the responsive landing Y, the old
+  0.7 s overlap would produce a 0.09322-unit entrance-tail-plus-float displacement at
+  280 × 1000, beyond the 0.08-unit bound. At 0.65 s the reference matrix peaks at 0.07758.
+  Consequently `floatOffset(3.5)` is `0.0233616`, not zero; the neutral composition anchor
+  is still defined at zero float while the live cube continues through the overlap.
 - **Post-settle interaction:** drag horizontally to spin. Gain is 1.0 revolution per
   `min(innerWidth, innerHeight)` of drag — normalized against the same dimension the camera
   fits the cube to, so the felt sensitivity is identical on a phone and a desktop. Release
@@ -125,24 +120,28 @@ Requirements:
   `CUBE_RADIUS * FIT_MARGIN`, so the camera pulls back in exact proportion to any change in
   `CUBE_SIZE` and the projected size is invariant — changing `CUBE_SIZE` produces a
   pixel-identical page. `FIT_MARGIN` is the multiple of the cube's bounding-sphere radius
-  the camera frames, so it reads directly as "how much room around the cube". Set to 1.6:
-  the edge-on silhouette spans 51% of the smaller viewport dimension (it was 60.5% at 1.35).
+  the camera frames, so it reads directly as "how much room around the cube". Set to 1.9:
+  the settled silhouette spans 43–44% of the smaller viewport dimension.
   Raising it also raises `entranceStartY`, which lowers the `startSpin` strobing ceiling —
   re-measure that before changing it.
+- **Responsive landing anchor:** the entrance, resting state, and both dock directions read
+  one responsive landing Y derived from the heading line box, nominal gap, and projected
+  settled cube. The neutral heading-plus-cube bounds are centered as a group; the live cube's
+  float is added independently around that anchor.
 - **Page:** off-white background (`#f7f7f8`). The landing page has exactly one visible DOM
   heading, `Welcome`, above the cube. No other visible landing copy, nav text, breadcrumbs, or
   menu is present. The document still carries a `<nav>` of five links, visually hidden with
-  `clip-path` but focusable and placed first so it doubles as skip navigation. Content routes
-  are ordinary scrolling DOM under a fixed canvas.
+  `clip-path` but focusable and placed first so it doubles as skip navigation. The heading and
+  neutral cube are vertically centered as one responsive composition; the heading remains
+  fixed while the cube floats. Content routes are ordinary scrolling DOM under a fixed canvas.
 - **Typography:** Geist Sans is the site-wide primary typeface, self-hosted as the official
   variable WOFF2 under the SIL Open Font License. Body copy remains weight 400, content
   headings remain 500, and the landing `Welcome` uses 450. The existing system stack is a
   loading/error fallback only; the site makes no font-CDN request.
-- **Reduced motion:** `prefers-reduced-motion` clamps dock transitions to
-  `DOCK.reducedDuration` 0.12 s and changes the `Welcome` reveal to a 150 ms opacity-only
-  fade. Motion there gates *navigation* rather than decoration — unclamped, a motion-sensitive
-  viewer waits 0.9 s of animation to reach a page, twice per round trip. The entrance's 3.5 s
-  is still intentionally unchanged.
+- **Reduced motion:** `prefers-reduced-motion` is honored for the dock transitions and the
+  welcome reveal. Dock transitions clamp to `DOCK.reducedDuration` 0.12 s because motion there
+  gates navigation; the welcome becomes a 150 ms opacity-only fade. The entrance's 3.5 s is
+  still intentionally not honored.
 - **Deployment:** not set up. Scope ends at a working dev server and a static production build.
 - **Routing:** hash-based (`#/work`), not the History API. Deployment is not set up, and the
   History API would make correct production behavior depend on a host rewrite rule that does
@@ -179,8 +178,9 @@ Requirements:
   would draw an 83 px nav button on a desktop and 30 px on a phone. `src/scene.js` derives
   `dockScale` from `DOCK.silhouettePx` 64 (capped at 16% of the smaller viewport dimension,
   which binds below ~400 px) and `dockY` from `DOCK.bottomMarginPx` 24, both re-derived on
-  resize. Position and scale run on `easeInOutCubic` over `DOCK.duration` 0.9 s. Every
-  shrinking or expanding transition also turns through one whole yaw revolution on quintic
+  resize. Position starts from the responsive landing Y rather than world-space `y = 0`, and
+  position and scale run on `easeInOutCubic` over `DOCK.duration` 0.9 s. Every shrinking or
+  expanding transition also turns through one whole yaw revolution on quintic
   `smootherStep`, plus the shortest snap to `SETTLE.yaw + k·90°`. Whole revolutions preserve
   the edge-on dock pose and exact 64 px silhouette; `smootherStep` brings angular velocity
   and acceleration to zero at both ends and limits the worst 405° turn to 843.75°/s, or

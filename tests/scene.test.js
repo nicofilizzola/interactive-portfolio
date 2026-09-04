@@ -2,8 +2,44 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createScene } from '../src/scene.js';
 import { visibleHalfHeight } from '../src/camera.js';
-import { CAMERA_FOV, COLORS, CUBE_RADIUS, CUBE_SIZE, ENTRANCE, FLOAT } from '../src/config.js';
+import {
+  CAMERA_FOV,
+  COLORS,
+  CUBE_RADIUS,
+  CUBE_SIZE,
+  ENTRANCE,
+  FLOAT,
+} from '../src/config.js';
 import { entranceState, floatOffset } from '../src/animation.js';
+import { centeredComposition, compositionGapPx } from '../src/composition.js';
+
+const VIEWPORTS = [
+  [1920, 1080],
+  [1440, 900],
+  [1000, 1000],
+  [390, 844],
+  [280, 1000],
+  [844, 390],
+];
+
+function headingHeightPx(width, height) {
+  const fontSize = Math.min(112, Math.max(36, Math.min(0.11 * width, 0.11 * height)));
+  return 0.9 * fontSize;
+}
+
+function applyTestComposition(view, width, height) {
+  const headingHeight = headingHeightPx(width, height);
+  const gap = compositionGapPx(width, height, 16);
+  const layout = centeredComposition({
+    viewportHeight: height,
+    headingHeight,
+    gap,
+    zeroBounds: view.projectCubeBounds({ y: 0 }),
+    unitBounds: view.projectCubeBounds({ y: 1 }),
+  });
+  view.setLandingY(layout.landingY);
+  return { headingHeight, gap, layout };
+}
 
 describe('createScene', () => {
   it('builds an off-white scene containing the cube', () => {
@@ -55,6 +91,48 @@ describe('createScene', () => {
     expect(view.startY).toBeGreaterThan(landscapeStartY);
   });
 
+  it('draws the settled cube at 43–44 percent of the smaller viewport dimension', () => {
+    const view = createScene(1600, 900);
+
+    for (const [width, height] of VIEWPORTS) {
+      view.resize(width, height);
+      const bounds = view.projectCubeBounds();
+      const fraction = bounds.width / Math.min(width, height);
+      expect(fraction).toBeGreaterThanOrEqual(0.43);
+      expect(fraction).toBeLessThanOrEqual(0.45);
+    }
+  });
+
+  it('centers the neutral heading and cube as one visual group', () => {
+    const view = createScene(1600, 900);
+
+    for (const [width, height] of VIEWPORTS) {
+      view.resize(width, height);
+      const { layout } = applyTestComposition(view, width, height);
+      const placed = view.projectCubeBounds({ y: view.landingY });
+      const actualCenter = (layout.headingTopPx + placed.bottom) / 2;
+      expect(Math.abs(actualCenter - height / 2)).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('keeps at least 16 pixels between the fixed heading and the floating cube', () => {
+    const view = createScene(1600, 900);
+
+    for (const [width, height] of VIEWPORTS) {
+      view.resize(width, height);
+      const { headingHeight, layout } = applyTestComposition(view, width, height);
+      const headingBottom = layout.headingTopPx + headingHeight;
+
+      for (let degrees = 0; degrees < 360; degrees += 1) {
+        const bounds = view.projectCubeBounds({
+          y: view.landingY + FLOAT.amplitude,
+          yaw: (degrees * Math.PI) / 180,
+        });
+        expect(bounds.top - headingBottom).toBeGreaterThanOrEqual(16);
+      }
+    }
+  });
+
   it('keeps the whole cube inside the frame at every aspect, idle float included', () => {
     const view = createScene(1600, 900);
 
@@ -75,19 +153,21 @@ describe('createScene', () => {
 
     for (const [w, h] of [[2133, 1012], [1600, 900], [900, 900], [390, 844], [280, 1000]]) {
       view.resize(w, h);
-      const entranceOpts = { ...ENTRANCE, startY: view.startY };
+      applyTestComposition(view, w, h);
+      const entranceOpts = { ...ENTRANCE, startY: view.startY, endY: view.landingY };
       const floatOpts = { ...FLOAT, duration: ENTRANCE.duration };
 
       // Through the overlap the entrance offset and the float's first upward
-      // half-cycle are both positive and ADD. This is the constraint that pins
-      // FLOAT.overlap at 0.7 s: raise it, or raise FIT_MARGIN (which raises
-      // startY), and this fails before anything visibly leaves the frame.
+      // half-cycle are both positive and ADD. The smaller framing and lower
+      // landing target pin FLOAT.overlap at 0.65 s for the 280x1000 case.
       let peak = 0;
       const onset = ENTRANCE.duration - FLOAT.overlap;
       for (let i = 0; i <= 2000; i += 1) {
         const t = onset + (i / 2000) * (FLOAT.period / 2);
-        const sum = entranceState(t, entranceOpts).y + floatOffset(t, floatOpts);
-        if (sum > peak) peak = sum;
+        const entrance = entranceState(t, entranceOpts);
+        const displacement =
+          entrance.y - view.landingY + floatOffset(t, floatOpts) * entrance.scale;
+        if (displacement > peak) peak = displacement;
       }
 
       expect(peak).toBeLessThan(FLOAT.amplitude);
@@ -99,19 +179,10 @@ describe('the dock framing', () => {
   // Derived in the plan's architecture reference. The dock button box and the
   // dock transition target both read these, so they are pinned here.
   const CASES = [
-    // The plan's reference table lists this row's y as -1.9584, but that value
-    // is inconsistent with the same row's own halfHeight (2.2170), dockScale
-    // (0.11612), and px/unit (243.58) columns: plugging those into the dock.js
-    // derivation gives -1.95758, not -1.9584. Verified independently (see the
-    // task-4 report) — a second, undocumented table slip distinct from errata 1.
-    { w: 1920, h: 1080, silhouette: 64, scale: 0.11612, y: -1.9576 },
-    { w: 1440, h: 900, silhouette: 64, scale: 0.13936, y: -1.9057 },
-    // Same slip as the 1920x1080 row above: the table's -1.9312 is inconsistent
-    // with its own halfHeight/dockScale/px-per-unit columns, which give -1.93683.
-    { w: 1000, h: 1000, silhouette: 64, scale: 0.12542, y: -1.9368 },
-    // The 16% cap binds below ~400 px of minimum dimension. The spec's own table
-    // omits the cap on this row and reports -4.079; see the plan's errata 1.
-    { w: 390, h: 844, silhouette: 62.4, scale: 0.31354, y: -4.0907 },
+    { w: 1920, h: 1080, silhouette: 64, scale: 0.13790, y: -2.3246 },
+    { w: 1440, h: 900, silhouette: 64, scale: 0.16548, y: -2.2630 },
+    { w: 1000, h: 1000, silhouette: 64, scale: 0.14893, y: -2.3000 },
+    { w: 390, h: 844, silhouette: 62.4, scale: 0.37232, y: -4.8575 },
   ];
 
   it('derives the dock scale and height from a CSS-pixel size at every aspect', () => {

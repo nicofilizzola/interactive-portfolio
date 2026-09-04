@@ -144,7 +144,7 @@ the exact 3.150-revolution landing.
 
 The larger entrance start and lower responsive landing target increase the entrance tail
 during the float overlap. With `FLOAT.overlap = 0.7`, the worst tested 280 × 1000 composition
-reaches 0.09356 world units relative to the landing target, exceeding the 0.08-unit bound.
+reaches 0.09322 world units relative to the landing target, exceeding the 0.08-unit bound.
 Set `FLOAT.overlap` to `0.65` seconds. The same matrix then peaks at 0.07758 units, preserving
 the bound while moving the float onset only 50 ms later. The smooth-step envelope,
 `rampDuration`, amplitude, period, C² onset, and pre-entrance-completion overlap remain
@@ -322,7 +322,7 @@ Font swapping must not replay the welcome animation.
 | `public/fonts/Geist-Variable.woff2` | Locally hosted official variable font. |
 | `public/fonts/OFL.txt` | Preserve the font's SIL Open Font License. |
 | `src/config.js` | Set `FIT_MARGIN` to `1.9` and `FLOAT.overlap` to `0.65`, with their measured constraints. |
-| `src/style.css` | Declare Geist, apply it globally, expose the responsive composition gap, and define standard, exit, and reduced-motion presentation. |
+| `src/style.css` | Declare Geist, apply it globally, and define heading typography plus standard, exit, and reduced-motion presentation. |
 | `src/composition.js` | Purely derive centered stack placement from viewport, heading, gap, and projected-cube metrics; import neither the DOM nor Three.js. |
 | `src/scene.js` | Recalculate camera framing and expose the projection data and responsive landing Y needed by the composition. |
 | `src/dock.js` | Interpolate from a supplied responsive landing Y instead of hard-coded world-space zero. |
